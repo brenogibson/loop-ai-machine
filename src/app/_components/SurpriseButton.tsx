@@ -5,6 +5,7 @@ import { getCurrentEngine } from "@/lib/audio/engine-registry";
 import { createSurpriseSource } from "@/lib/audio/surprise";
 import { registerSurpriseAudio } from "@/lib/audio/surprise-registry";
 import type { SurpriseStyle } from "@/lib/claude/surprise-tool";
+import { ApiError, fetchJson } from "@/lib/net/fetch-json";
 import { useSequencer } from "@/store/sequencer";
 
 type SurpriseResponse = {
@@ -46,22 +47,13 @@ export function SurpriseButton() {
     setError(null);
     const { pattern, vibeLabel, surpriseHistory } = useSequencer.getState();
     try {
-      const res = await fetch("/api/surprise", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const data = await fetchJson<SurpriseResponse>("/api/surprise", {
+        body: {
           pattern,
           vibeLabel,
           recentPhrases: surpriseHistory,
-        }),
+        },
       });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(body?.error ?? `http ${res.status}`);
-      }
-      const data = (await res.json()) as SurpriseResponse;
       const sampleId = `surprise_${++surpriseCounter}`;
       const source = await createSurpriseSource({
         sampleId,
@@ -86,9 +78,12 @@ export function SurpriseButton() {
         text: `🎤 "${data.phrase}" (${data.style}) — ${data.commentary}`,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg =
+        err instanceof ApiError
+          ? err.friendly
+          : "A surpresa não saiu. Tenta de novo.";
       setError(msg);
-      appendChat({ role: "assistant", text: `⚠️ surpresa falhou: ${msg}` });
+      appendChat({ role: "assistant", text: `⚠️ ${msg}` });
     } finally {
       setLoading(false);
     }

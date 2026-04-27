@@ -42,6 +42,7 @@ type SequencerState = {
   pushSurpriseHistory: (phrase: string) => void;
   addSurpriseTrack: (input: AddSurpriseTrackInput) => void;
   removeTrackBySampleId: (sampleId: string) => void;
+  resetSession: () => void;
 };
 
 function preserveSurpriseTracks(oldTracks: Track[], newTracks: Track[]): Track[] {
@@ -128,4 +129,14 @@ export const useSequencer = create<SequencerState>((set) => ({
     }),
   setCurrentStep: (step) => set({ currentStep: step }),
   setPlaying: (playing) => set({ playing }),
+  resetSession: () =>
+    set({
+      pattern: DEMO_PATTERN,
+      currentStep: -1,
+      playing: false,
+      vibeId: null,
+      vibeLabel: null,
+      chat: [],
+      surpriseHistory: [],
+    }),
 }));

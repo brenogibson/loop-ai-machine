@@ -19,3 +19,7 @@ export function getSurpriseAudio(sampleId: string): string | undefined {
 export function surpriseAudioEntries(): Array<[string, string]> {
   return Array.from(store.entries());
 }
+
+export function clearSurpriseAudio(): void {
+  store.clear();
+}

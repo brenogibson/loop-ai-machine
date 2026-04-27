@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import { ApiError, fetchJson } from "@/lib/net/fetch-json";
 import { useSequencer } from "@/store/sequencer";
 
 const SUGGESTIONS = [
@@ -32,21 +33,7 @@ export function ChatPanel() {
       setLoading(true);
       try {
         const currentPattern = useSequencer.getState().pattern;
-        const res = await fetch("/api/claude", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            message: trimmed,
-            pattern: currentPattern,
-          }),
-        });
-        if (!res.ok) {
-          const body = (await res.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          throw new Error(body?.error ?? `http ${res.status}`);
-        }
-        const data = (await res.json()) as {
+        const data = await fetchJson<{
           pattern: import("@/lib/audio/pattern").Pattern;
           vibe_label: string;
           commentary: string;
@@ -54,14 +41,19 @@ export function ChatPanel() {
             cache_read_input_tokens: number;
             cache_creation_input_tokens: number;
           };
-        };
+        }>("/api/claude", {
+          body: { message: trimmed, pattern: currentPattern },
+        });
         applyClaudePattern(data.pattern, data.vibe_label);
         appendChat({ role: "assistant", text: data.commentary });
         if (process.env.NODE_ENV !== "production") {
           console.log("[claude usage]", data.usage);
         }
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg =
+          err instanceof ApiError
+            ? err.friendly
+            : "Algo não funcionou. Tenta de novo.";
         setError(msg);
         appendChat({ role: "assistant", text: `⚠️ ${msg}` });
       } finally {
