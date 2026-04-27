@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "samples": [
+    {
+      "id": "kick_808",
+      "url": "/samples/kick_808.wav",
+      "category": "kick",
+      "vibes": ["trap", "funk", "dnb"],
+      "bpm_range": [80, 180],
+      "description": "Sub 808 kick, long decay",
+      "volume_suggest_db": 0
+    },
+    {
+      "id": "kick_tight",
+      "url": "/samples/kick_tight.wav",
+      "category": "kick",
+      "vibes": ["lofi", "samba", "ambient"],
+      "bpm_range": [60, 130],
+      "description": "Dry punchy kick, short decay",
+      "volume_suggest_db": -1
+    },
+    {
+      "id": "kick_boom",
+      "url": "/samples/kick_boom.wav",
+      "category": "kick",
+      "vibes": ["trap", "dnb", "ambient"],
+      "bpm_range": [70, 180],
+      "description": "Deep boomy kick, very long tail",
+      "volume_suggest_db": -2
+    },
+    {
+      "id": "snare_tight",
+      "url": "/samples/snare_tight.wav",
+      "category": "snare",
+      "vibes": ["funk", "samba", "dnb"],
+      "bpm_range": [80, 180],
+      "description": "Tight snare, mid body",
+      "volume_suggest_db": -3
+    },
+    {
+      "id": "snare_fat",
+      "url": "/samples/snare_fat.wav",
+      "category": "snare",
+      "vibes": ["lofi", "trap", "ambient"],
+      "bpm_range": [60, 140],
+      "description": "Fat pink-noise snare, mellow",
+      "volume_suggest_db": -4
+    },
+    {
+      "id": "snare_crack",
+      "url": "/samples/snare_crack.wav",
+      "category": "snare",
+      "vibes": ["trap", "dnb", "funk"],
+      "bpm_range": [100, 180],
+      "description": "Cracking high snare, aggressive",
+      "volume_suggest_db": -2
+    },
+    {
+      "id": "hat_closed",
+      "url": "/samples/hat_closed.wav",
+      "category": "hat",
+      "vibes": ["funk", "trap", "samba", "dnb"],
+      "bpm_range": [60, 180],
+      "description": "Closed hi-hat, clean tick",
+      "volume_suggest_db": -11
+    },
+    {
+      "id": "hat_open",
+      "url": "/samples/hat_open.wav",
+      "category": "hat",
+      "vibes": ["funk", "lofi", "ambient"],
+      "bpm_range": [60, 140],
+      "description": "Open hat, lingering noise",
+      "volume_suggest_db": -13
+    },
+    {
+      "id": "hat_tight",
+      "url": "/samples/hat_tight.wav",
+      "category": "hat",
+      "vibes": ["trap", "dnb"],
+      "bpm_range": [100, 180],
+      "description": "Very short closed hat for trap rolls",
+      "volume_suggest_db": -10
+    },
+    {
+      "id": "clap_wide",
+      "url": "/samples/clap_wide.wav",
+      "category": "clap",
+      "vibes": ["funk", "lofi", "samba"],
+      "bpm_range": [60, 140],
+      "description": "Wide warm clap",
+      "volume_suggest_db": -5
+    },
+    {
+      "id": "clap_sharp",
+      "url": "/samples/clap_sharp.wav",
+      "category": "clap",
+      "vibes": ["trap", "dnb", "funk"],
+      "bpm_range": [100, 180],
+      "description": "Sharp bright clap",
+      "volume_suggest_db": -4
+    },
+    {
+      "id": "perc_tom",
+      "url": "/samples/perc_tom.wav",
+      "category": "perc",
+      "vibes": ["samba", "funk", "ambient"],
+      "bpm_range": [60, 140],
+      "description": "Low tom-like perc",
+      "volume_suggest_db": -4
+    },
+    {
+      "id": "perc_rim",
+      "url": "/samples/perc_rim.wav",
+      "category": "perc",
+      "vibes": ["lofi", "samba", "funk"],
+      "bpm_range": [60, 140],
+      "description": "Rim/click for ghost notes",
+      "volume_suggest_db": -8
+    },
+    {
+      "id": "bass_sub",
+      "url": "/samples/bass_sub.wav",
+      "category": "bass",
+      "vibes": ["trap", "dnb", "ambient"],
+      "bpm_range": [60, 180],
+      "description": "Deep sub bass one-shot",
+      "volume_suggest_db": -4
+    },
+    {
+      "id": "bass_saw",
+      "url": "/samples/bass_saw.wav",
+      "category": "bass",
+      "vibes": ["funk", "dnb"],
+      "bpm_range": [100, 180],
+      "description": "Saw-like bass with harmonics",
+      "volume_suggest_db": -5
+    },
+    {
+      "id": "bass_pluck",
+      "url": "/samples/bass_pluck.wav",
+      "category": "bass",
+      "vibes": ["lofi", "samba", "funk"],
+      "bpm_range": [60, 140],
+      "description": "Short plucky bass",
+      "volume_suggest_db": -5
+    },
+    {
+      "id": "fx_riser",
+      "url": "/samples/fx_riser.wav",
+      "category": "fx",
+      "vibes": ["trap", "dnb", "ambient"],
+      "bpm_range": [60, 180],
+      "description": "Upward tension riser",
+      "volume_suggest_db": -8
+    },
+    {
+      "id": "fx_swoosh",
+      "url": "/samples/fx_swoosh.wav",
+      "category": "fx",
+      "vibes": ["lofi", "ambient", "dnb"],
+      "bpm_range": [60, 180],
+      "description": "Airy noise swoosh",
+      "volume_suggest_db": -10
+    },
+    {
+      "id": "fx_zap",
+      "url": "/samples/fx_zap.wav",
+      "category": "fx",
+      "vibes": ["trap", "funk"],
+      "bpm_range": [80, 180],
+      "description": "Short zap accent",
+      "volume_suggest_db": -6
+    }
+  ]
+}
