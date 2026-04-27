@@ -81,7 +81,7 @@ export const useSequencer = create<SequencerState>((set) => ({
     })),
   appendChat: (msg) => set((s) => ({ chat: [...s.chat, msg] })),
   pushSurpriseHistory: (phrase) =>
-    set((s) => ({ surpriseHistory: [...s.surpriseHistory.slice(-7), phrase] })),
+    set((s) => ({ surpriseHistory: [...s.surpriseHistory.slice(-11), phrase] })),
   addSurpriseTrack: (input) =>
     set((state) => {
       const steps: Step[] =

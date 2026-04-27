@@ -11,6 +11,14 @@ export const STYLES = [
 ] as const;
 export type SurpriseStyle = (typeof STYLES)[number];
 
+// Temporarily disabled styles. Remove from this list to re-enable — the effect
+// chains in lib/audio/surprise.ts stay intact so re-enabling needs no code.
+export const DISABLED_STYLES: SurpriseStyle[] = ["robotic", "pitched_down"];
+
+export const ACTIVE_STYLES: SurpriseStyle[] = STYLES.filter(
+  (s) => !DISABLED_STYLES.includes(s),
+);
+
 export const VOICE_OPTIONS = [
   { id: "Camila", language: "pt-BR", engine: "generative" as const, gender: "F" },
   { id: "Thiago", language: "pt-BR", engine: "neural" as const, gender: "M" },
@@ -48,9 +56,9 @@ export const SURPRISE_TOOL: Anthropic.Tool = {
       },
       style: {
         type: "string",
-        enum: [...STYLES],
+        enum: [...ACTIVE_STYLES],
         description:
-          "Como a voz é processada: robotic (bitcrusher + pitch), melodic (reverb + chorus), reverse (toca ao contrário), stutter (repete chop), pitched_up (voz fina), pitched_down (voz grave), telephone (filtro banda estreita).",
+          "Como a voz é processada: melodic (reverb + chorus), reverse (toca ao contrário), stutter (repete chop), pitched_up (voz fina), telephone (filtro banda estreita). Varie sempre.",
       },
       steps: {
         type: "array",
