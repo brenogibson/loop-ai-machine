@@ -8,12 +8,27 @@ export const STYLES = [
   "pitched_up",
   "pitched_down",
   "telephone",
+  "megaphone",
+  "slice",
+  "dub",
+  "harmony",
+  "chopped",
 ] as const;
 export type SurpriseStyle = (typeof STYLES)[number];
 
 // Temporarily disabled styles. Remove from this list to re-enable — the effect
 // chains in lib/audio/surprise.ts stay intact so re-enabling needs no code.
-export const DISABLED_STYLES: SurpriseStyle[] = ["robotic", "pitched_down"];
+// stutter superseded by the BPM-synced "slice"; robotic/pitched_down muddy;
+// pitched_up/pitched_down both pull the voice off-key; harmony (choir) and
+// slice (rhythmic echo) didn't sound good over the beat.
+export const DISABLED_STYLES: SurpriseStyle[] = [
+  "robotic",
+  "pitched_down",
+  "pitched_up",
+  "stutter",
+  "harmony",
+  "slice",
+];
 
 export const ACTIVE_STYLES: SurpriseStyle[] = STYLES.filter(
   (s) => !DISABLED_STYLES.includes(s),
@@ -40,7 +55,7 @@ export const SURPRISE_TOOL: Anthropic.Tool = {
       phrase: {
         type: "string",
         description:
-          "Frase curta, 1-6 palavras, pra ser falada sobre o beat. Ex: 'segura o drop', 'vamo', 'that's the vibe', '3 2 1 go', 'let it ride'. Deve combinar com a vibe do pattern.",
+          "Frase BEM curta, no máximo 4 palavras (prefira 1-3), pra ser falada sobre o beat. Ex: 'vamo', 'mão pro alto', 'todo mundo na pista', 'sentiu isso?'. Deve combinar com a vibe do pattern.",
       },
       language: {
         type: "string",
@@ -58,7 +73,7 @@ export const SURPRISE_TOOL: Anthropic.Tool = {
         type: "string",
         enum: [...ACTIVE_STYLES],
         description:
-          "Como a voz é processada: melodic (reverb + chorus), reverse (toca ao contrário), stutter (repete chop), pitched_up (voz fina), telephone (filtro banda estreita). Varie sempre.",
+          "Como a voz é processada: melodic (reverb + chorus, etérea), reverse (frase vai e volta, eco palíndromo), telephone (filtro de rádio), megaphone (locutor de estádio, quente e potente), dub (eco dub que vai sumindo), chopped (cada palavra cai num step do grid, bem ritmado — ótimo pra frases de 2-4 palavras). Varie sempre.",
       },
       steps: {
         type: "array",

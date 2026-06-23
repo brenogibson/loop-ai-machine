@@ -8,7 +8,19 @@ export type SurpriseTrackMeta = {
   language: string;
 };
 
-export type TrackMeta = SurpriseTrackMeta;
+export type SynthInstrument = "bass" | "lead";
+
+// A synth row is one pitch of one instrument. Steps stay binary (note plays or
+// not at each 1/16), so the whole grid edit/render logic is reused. A group of
+// synth rows sharing an instrument forms a scale-locked mini piano-roll: only
+// in-scale notes get rows, so a layperson can't play a wrong note.
+export type SynthTrackMeta = {
+  kind: "synth";
+  instrument: SynthInstrument;
+  note: string; // absolute pitch, e.g. "C2", "Eb4"
+};
+
+export type TrackMeta = SurpriseTrackMeta | SynthTrackMeta;
 
 export type Track = {
   sampleId: string;

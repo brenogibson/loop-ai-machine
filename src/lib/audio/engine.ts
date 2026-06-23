@@ -1,6 +1,7 @@
 import * as Tone from "tone";
-import { STEPS_PER_BAR, type Pattern } from "./pattern";
+import { STEPS_PER_BAR, type Pattern, type SynthInstrument } from "./pattern";
 import type { SurpriseTrackSource } from "./surprise";
+import { createSynthVoice, type SynthVoice } from "./synth";
 
 export type SampleMap = Record<string, string>;
 
@@ -14,9 +15,21 @@ export class DrumEngine {
   private onStep: StepCallback | null = null;
   private loaded = false;
   private surpriseSources: Map<string, SurpriseTrackSource> = new Map();
+  // One synth voice per instrument, created lazily and shared by all its rows.
+  private synthVoices: Map<SynthInstrument, SynthVoice> = new Map();
 
   constructor(getPattern: PatternGetter) {
     this.getPattern = getPattern;
+  }
+
+  private synthVoice(instrument: SynthInstrument): SynthVoice {
+    let v = this.synthVoices.get(instrument);
+    if (!v) {
+      v = createSynthVoice(instrument);
+      v.output.toDestination();
+      this.synthVoices.set(instrument, v);
+    }
+    return v;
   }
 
   async load(samples: SampleMap): Promise<void> {
@@ -43,13 +56,16 @@ export class DrumEngine {
           if (!track.steps[stepIndex]) continue;
           if (track.meta?.kind === "surprise") {
             const src = this.surpriseSources.get(track.sampleId);
-            if (!src || !src.player.loaded) continue;
-            src.player.volume.value = track.volumeDb + (src.makeupDb ?? 0);
-            try {
-              src.player.start(time);
-            } catch {
-              // mid-playback; skip this step
-            }
+            if (!src) continue;
+            src.trigger(time, stepIndex, track.volumeDb);
+            continue;
+          }
+          if (track.meta?.kind === "synth") {
+            this.synthVoice(track.meta.instrument).triggerNote(
+              track.meta.note,
+              time,
+              track.volumeDb,
+            );
             continue;
           }
           const player = this.players?.player(track.sampleId);
@@ -109,6 +125,8 @@ export class DrumEngine {
 
   dispose(): void {
     this.clearSurpriseSources();
+    for (const v of this.synthVoices.values()) v.dispose();
+    this.synthVoices.clear();
     this.sequence?.dispose();
     this.sequence = null;
     this.players?.dispose();

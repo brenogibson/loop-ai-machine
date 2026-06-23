@@ -4,6 +4,8 @@ import { STEPS_PER_BAR, type Pattern } from "./pattern";
 import type { Catalog } from "@/lib/samples/catalog";
 import { surpriseAudioEntries } from "./surprise-registry";
 import { createSurpriseSource } from "./surprise";
+import { createSynthVoice, type SynthVoice } from "./synth";
+import type { SynthInstrument } from "./pattern";
 import type { SurpriseStyle } from "@/lib/claude/surprise-tool";
 
 export type RenderOptions = {
@@ -52,9 +54,22 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
         phrase: track.meta.phrase,
         style: track.meta.style as SurpriseStyle,
         audioBase64: base64,
+        bpm: opts.pattern.bpm,
       });
       surpriseSources.set(track.sampleId, source);
     }
+
+    // Synth voices for this offline context, created lazily per instrument.
+    const synthVoices = new Map<SynthInstrument, SynthVoice>();
+    const synthVoice = (instrument: SynthInstrument): SynthVoice => {
+      let v = synthVoices.get(instrument);
+      if (!v) {
+        v = createSynthVoice(instrument);
+        v.output.toDestination();
+        synthVoices.set(instrument, v);
+      }
+      return v;
+    };
 
     // Make sure every player's buffer finished loading before the transport
     // starts — otherwise the Sequence callback can fire on an unloaded player
@@ -71,13 +86,16 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
           if (!track.steps[stepIndex]) continue;
           if (track.meta?.kind === "surprise") {
             const src = surpriseSources.get(track.sampleId);
-            if (!src || !src.player.loaded) continue;
-            src.player.volume.value = track.volumeDb + (src.makeupDb ?? 0);
-            try {
-              src.player.start(time);
-            } catch {
-              // skip
-            }
+            if (!src) continue;
+            src.trigger(time, stepIndex, track.volumeDb);
+            continue;
+          }
+          if (track.meta?.kind === "synth") {
+            synthVoice(track.meta.instrument).triggerNote(
+              track.meta.note,
+              time,
+              track.volumeDb,
+            );
             continue;
           }
           const player = players.player(track.sampleId);

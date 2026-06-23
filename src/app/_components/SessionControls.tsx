@@ -76,7 +76,7 @@ export function SessionControls() {
       <button
         type="button"
         onClick={() => setShowConfirm(true)}
-        className="px-4 py-2 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm hover:border-rose-500 hover:text-rose-300 transition-colors"
+        className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-zinc-300 text-sm hover:border-rose-500 hover:text-rose-300 transition-colors"
       >
         ↻ Nova Sessão
       </button>
@@ -119,7 +119,7 @@ export function SessionControls() {
           <button
             type="button"
             onClick={dismissIdle}
-            className="w-full px-4 py-3 rounded-full bg-emerald-500 text-black font-semibold hover:bg-emerald-400"
+            className="w-full px-4 py-3 rounded-full bg-[rgb(var(--cyan))] text-black font-semibold hover:brightness-110 shadow-[0_0_20px_rgba(56,232,255,0.4)]"
           >
             Ainda estou aqui!
           </button>
@@ -142,7 +142,7 @@ function Modal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-zinc-900 border border-zinc-800 p-6 shadow-2xl"
+        className="w-full max-w-sm rounded-2xl bg-zinc-950/80 backdrop-blur-md border border-white/10 p-6 shadow-2xl shadow-fuchsia-500/10"
         onClick={(e) => e.stopPropagation()}
       >
         {children}
