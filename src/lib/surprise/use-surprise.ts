@@ -19,32 +19,18 @@ type SurpriseResponse = {
   audio_base64: string;
 };
 
-const LOADING_MESSAGES = [
-  "Inventando uma frase secreta…",
-  "Treinando a voz do robô…",
-  "Pegando emprestado o microfone…",
-  "Remixando palavras no reverb…",
-  "Cortando samples no tempo certo…",
-];
-
 let surpriseCounter = 0;
 
-const LANG_OPTIONS: { id: import("@/store/sequencer").SurpriseLang; label: string }[] = [
-  { id: "auto", label: "Auto" },
-  { id: "pt-BR", label: "PT" },
-  { id: "en-US", label: "EN" },
-];
-
-export function SurpriseButton() {
+// Create-a-surprise flow (Claude phrase → Polly audio → track), shared by any
+// UI entry point. Errors surface both via `error` and in the chat feed.
+export function useSurprise() {
   const appendChat = useSequencer((s) => s.appendChat);
   const pushSurpriseHistory = useSequencer((s) => s.pushSurpriseHistory);
   const addSurpriseTrack = useSequencer((s) => s.addSurpriseTrack);
-  const surpriseLang = useSequencer((s) => s.surpriseLang);
-  const setSurpriseLang = useSequencer((s) => s.setSurpriseLang);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleClick = useCallback(async () => {
+  const create = useCallback(async () => {
     if (loading) return;
     const engine = getCurrentEngine();
     if (!engine) {
@@ -101,59 +87,5 @@ export function SurpriseButton() {
     }
   }, [addSurpriseTrack, appendChat, loading, pushSurpriseHistory]);
 
-  return (
-    <div className="flex flex-col items-center gap-2">
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={loading}
-        className={[
-          "relative px-8 py-4 rounded-2xl font-bold text-lg transition-all",
-          "bg-gradient-to-br from-[rgb(var(--magenta))] to-purple-600",
-          "text-white shadow-[0_0_25px_rgba(255,60,200,0.45)]",
-          "hover:scale-105 hover:shadow-[0_0_40px_rgba(255,60,200,0.7)]",
-          "disabled:opacity-70 disabled:cursor-wait disabled:scale-100",
-        ].join(" ")}
-      >
-        {loading ? (
-          <span className="flex items-center gap-2">
-            <span className="inline-block animate-spin">🎲</span>
-            <span>
-              {LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)]}
-            </span>
-          </span>
-        ) : (
-          <span className="flex items-center gap-2">
-            <span>🎤</span>
-            <span>Surpresa</span>
-          </span>
-        )}
-      </button>
-
-      {/* Phrase language: Auto lets Claude pick per vibe, or force PT / EN. */}
-      <div className="flex items-center gap-1 rounded-full bg-white/5 border border-white/10 p-0.5">
-        {LANG_OPTIONS.map((opt) => {
-          const active = surpriseLang === opt.id;
-          return (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => setSurpriseLang(opt.id)}
-              className={[
-                "px-3 py-1 text-xs rounded-full font-medium transition-colors",
-                active
-                  ? "bg-[rgb(var(--magenta))] text-white shadow-[0_0_12px_rgba(255,60,200,0.45)]"
-                  : "text-zinc-400 hover:text-zinc-200",
-              ].join(" ")}
-              aria-pressed={active}
-            >
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {error && <div className="text-xs text-rose-400">{error}</div>}
-    </div>
-  );
+  return { create, loading, error };
 }

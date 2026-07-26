@@ -119,7 +119,7 @@ export function SessionControls() {
           <button
             type="button"
             onClick={dismissIdle}
-            className="w-full px-4 py-3 rounded-full bg-[rgb(var(--cyan))] text-black font-semibold hover:brightness-110 shadow-[0_0_20px_rgba(56,232,255,0.4)]"
+            className="w-full px-4 py-3 rounded-full bg-[rgb(var(--drums))] text-black font-semibold hover:brightness-110 shadow-[0_0_20px_rgb(var(--drums)/0.4)]"
           >
             Ainda estou aqui!
           </button>
@@ -142,7 +142,7 @@ function Modal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-zinc-950/80 backdrop-blur-md border border-white/10 p-6 shadow-2xl shadow-fuchsia-500/10"
+        className="w-full max-w-sm rounded-2xl bg-zinc-950/80 backdrop-blur-md border border-white/10 p-6 shadow-2xl shadow-orange-500/10"
         onClick={(e) => e.stopPropagation()}
       >
         {children}

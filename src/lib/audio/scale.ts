@@ -138,6 +138,89 @@ export function noteForDegree(
   return scaleNotes(root, scale, octave, safe + 1)[safe];
 }
 
+// ---------------------------------------------------------------------------
+// Circle of fifths — harmonic journey instead of random key jumps.
+//
+// Neighbouring keys on the circle share all but one note, so moving along it
+// reads as the music *developing* rather than teleporting. The journey walks
+// counter-clockwise (down a fifth = the classic V→I resolution, the strongest
+// "arrival" in tonal music), alternating between a key and its relative
+// minor/major every few steps for emotional contrast, and returns home after a
+// full lap through all 12 keys.
+// ---------------------------------------------------------------------------
+
+// Clockwise circle of fifths (each step = up a perfect fifth).
+const CIRCLE_OF_FIFTHS = [
+  "C", "G", "D", "A", "E", "B", "Gb", "Db", "Ab", "Eb", "Bb", "F",
+];
+
+export type KeyStep = {
+  root: string;
+  scale: ScaleName;
+  // Human-readable description of the harmonic move, for UI feedback.
+  label: string;
+};
+
+const MINOR_SCALES: ScaleName[] = ["minor", "dorian", "minorPentatonic"];
+
+function isMinor(scale: ScaleName): boolean {
+  return MINOR_SCALES.includes(scale);
+}
+
+// Next stop on the harmonic journey. The root ALWAYS advances one step
+// counter-clockwise on the circle (down a fifth — the V→I resolution), so a
+// full lap visits all 12 keys and lands back home. Every 4th move also flips
+// the mode (major ↔ minor) for emotional contrast, without disturbing the
+// journey's position — flipping by moving the root to its relative would undo
+// the advance and trap the trip in a 4-key loop.
+export function nextKeyStep(
+  current: { root: string; scale: ScaleName },
+  stepIndex: number,
+): KeyStep {
+  const pos = CIRCLE_OF_FIFTHS.indexOf(NOTE_NAMES[rootIndex(current.root)]);
+  const nextRoot = CIRCLE_OF_FIFTHS[((pos < 0 ? 0 : pos) - 1 + 12) % 12];
+  const flipMood = stepIndex % 4 === 3;
+
+  if (flipMood) {
+    const goingMinor = !isMinor(current.scale);
+    return {
+      root: nextRoot,
+      scale: goingMinor ? MINOR_SCALES[0] : "major",
+      label: goingMinor ? "quinta abaixo + fica menor" : "quinta abaixo + fica maior",
+    };
+  }
+
+  return {
+    root: nextRoot,
+    scale: current.scale,
+    label: "quinta abaixo",
+  };
+}
+
+// Bass register ceiling: no bass note may sit above this octave, or the line
+// stops sounding like a bass (very audible with high roots like Bb/B, where
+// the upper scale degrees spill into octave 3).
+export const BASS_MAX_OCTAVE = 2;
+
+// Drop a note by whole octaves until it's at or below `maxOctave` (pitch class
+// preserved). Used to cap bass notes after transposition.
+export function capNoteOctave(note: string, maxOctave: number): string {
+  const m = note.match(/^([A-G][b#]?)(-?\d+)$/);
+  if (!m) return note;
+  const oct = parseInt(m[2], 10);
+  return oct > maxOctave ? `${m[1]}${maxOctave}` : note;
+}
+
+// Starting octave for a bass riff in this key: if the riff's top degree would
+// cross above BASS_MAX_OCTAVE (high roots), start one octave lower so the
+// whole line stays in bass register.
+export function bassOctaveFor(root: string, scale: ScaleName): number {
+  const top = scaleNotes(root, scale, BASS_MAX_OCTAVE, 5)[4];
+  const m = top.match(/(-?\d+)$/);
+  const topOct = m ? parseInt(m[1], 10) : BASS_MAX_OCTAVE;
+  return topOct > BASS_MAX_OCTAVE ? BASS_MAX_OCTAVE - 1 : BASS_MAX_OCTAVE;
+}
+
 // Like noteForDegree but WRAPS across octaves instead of clamping, so degrees
 // beyond the scale size (e.g. a triad's 3rd/5th = degree+2/+4) keep climbing
 // into the next octave. Used by the melody/chord generator.
@@ -153,45 +236,62 @@ function degreeNote(
 
 // Generate a randomized-but-musical bassline as rows (note → steps), locked to
 // the scale. Rules that keep it groovy: the root anchors the downbeat, notes
-// land mostly on strong/off-beats, and density varies per call so successive
-// riffs feel different. Returns one row per distinct note used.
+// land mostly on strong/off-beats, and the line WALKS between degrees instead
+// of hammering the root. Guarantees a minimum density (5-8 hits) — the old
+// version sampled with replacement into a Set and often collapsed to 2-3 hits.
+const BASS_MIN_HITS = 5;
+
 export function generateBassline(
   root: string,
   scale: ScaleName,
   octave = 2,
 ): SynthRowInput[] {
   const notes = scaleNotes(root, scale, octave, 5); // low → high, root first
-  // Candidate onset positions, weighted toward musically strong spots.
-  const strong = [0, 8]; // bar + half-bar
-  const mid = [4, 12]; // backbeats
-  const off = [2, 6, 10, 14]; // ands
-  const syncopation = [3, 7, 11, 15]; // pushes
 
-  // Build a set of onsets: always the downbeat, plus a random spread.
-  const onsets = new Set<number>([0]);
-  if (Math.random() < 0.85) onsets.add(pick([8, 10]));
-  const extras = pick([2, 3, 4]); // how many more hits
-  const palette = [...mid, ...off, ...(Math.random() < 0.5 ? syncopation : [])];
-  for (let i = 0; i < extras; i++) onsets.add(pick(palette));
-  void strong;
+  // Onsets: anchors first, then fill from a weighted pool WITHOUT replacement
+  // until the target density is reached — no collisions, no sparse riffs.
+  const target = BASS_MIN_HITS + Math.floor(Math.random() * 4); // 5..8 hits
+  const onsets = new Set<number>([0, pick([8, 10])]); // downbeat + mid anchor
+  const pool = [4, 12, 2, 6, 10, 14, ...(Math.random() < 0.5 ? [3, 7, 11, 15] : [])]
+    .filter((s) => !onsets.has(s));
+  // Shuffle (Fisher-Yates) then take what we need.
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  for (const step of pool) {
+    if (onsets.size >= target) break;
+    onsets.add(step);
+  }
 
-  // Assign a note to each onset. Downbeat = root; others lean low (indices
-  // 0-2) so the line stays bass-like, with occasional reaches higher.
+  // Notes: a walk over degrees 0-4. Root anchors the downbeat and the line
+  // gravitates home, but never repeats one pitch more than twice in a row —
+  // that's what made old riffs feel monotonous.
   const byNote = new Map<string, number[]>();
   const addHit = (note: string, step: number) => {
     const arr = byNote.get(note) ?? [];
     arr.push(step);
     byNote.set(note, arr);
   };
+  let degree = 0;
+  let repeats = 0;
+  let prevNote: string | null = null;
   for (const step of [...onsets].sort((a, b) => a - b)) {
-    let note: string;
     if (step === 0) {
-      note = notes[0]; // root anchors the downbeat
+      degree = 0; // root anchors the downbeat
     } else {
-      const lean = Math.random();
-      const idx = lean < 0.55 ? 0 : lean < 0.8 ? pick([1, 2]) : pick([2, 3, 4]);
-      note = notes[idx];
+      // May hold the same pitch (groove repetition) but never 3+ in a row.
+      const stay = repeats < 2 && Math.random() < 0.3;
+      if (!stay) {
+        const move = pick([-2, -1, -1, 1, 1, 2, 2, 3]);
+        let next = degree + move;
+        if (next < 0 || next > 4) next = degree - move; // bounce off the range
+        degree = Math.max(0, Math.min(4, next));
+      }
     }
+    const note = notes[degree];
+    repeats = prevNote === note ? repeats + 1 : 0;
+    prevNote = note;
     addHit(note, step);
   }
 
@@ -306,9 +406,12 @@ export function generateLead(
   return rowsFromHits(hits);
 }
 
-// Generate sustained chord stabs (triads) — the "chords" layer. Plays a triad
-// per half-bar following the same kind of progression, so multiple notes sound
-// together. Voiced a bit lower than the lead so they sit as a pad/comp.
+// Harmony layer: at most TWO stacked moments per loop, and each is a DYAD
+// (two notes), never a full triad. Full triads on every half-bar made the loop
+// muddy and confusing — single notes carry the melody, and these sparse double
+// stops just mark the harmony. Voiced below the lead so they sit underneath.
+const MAX_CHORD_HITS = 2;
+
 export function generateChords(
   root: string,
   scale: ScaleName,
@@ -316,16 +419,14 @@ export function generateChords(
 ): SynthRowInput[] {
   const prog = pick(PROGRESSIONS.filter((p) => p[0] !== p[1])); // need movement
   const hits: Array<{ note: string; step: number }> = [];
-  // Each chord hits on its half-bar downbeat, optionally re-struck mid-half.
-  const restrike = Math.random() < 0.5;
-  for (let half = 0; half < 2; half++) {
-    const base = half * 8;
-    const chord = chordDegrees(prog[half]);
-    const steps = restrike ? [base, base + 4] : [base];
-    for (const step of steps) {
-      for (const ct of chord) {
-        hits.push({ note: degreeNote(root, scale, octave, ct), step });
-      }
+  // One stab per half-bar downbeat at most; sometimes only a single stab.
+  const count = Math.random() < 0.35 ? 1 : MAX_CHORD_HITS;
+  for (let i = 0; i < count; i++) {
+    const chordRoot = prog[i] ?? prog[0];
+    // Dyad: root + third, or root + fifth (open, less cluttered).
+    const partner = Math.random() < 0.5 ? chordRoot + 2 : chordRoot + 4;
+    for (const deg of [chordRoot, partner]) {
+      hits.push({ note: degreeNote(root, scale, octave, deg), step: i * 8 });
     }
   }
   return rowsFromHits(hits);

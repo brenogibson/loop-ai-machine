@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  /* Neon / synthwave palette */
-  --bg: #07060f;
-  --fg: #f0eaff;
-  --cyan: 56 232 255; /* drums */
-  --magenta: 255 60 200; /* surprises */
-  --amber: 255 196 84; /* playhead / beat */
-  --lime: 168 255 96; /* synth */
+  /* Warm neon palette — sunset/ember. Vars are named by ROLE, not hue, so the
+     theme can change without renaming anything. */
+  --bg: #120806;
+  --fg: #fff1e0;
+  --drums: 255 138 40; /* orange — drums */
+  --surprise: 255 58 92; /* hot coral/red — surprises */
+  --beat: 255 214 92; /* golden — playhead / beat */
+  --synth: 255 96 168; /* warm pink — synth */
 }
 
 @theme inline {
@@ -19,9 +20,9 @@
 
 body {
   background:
-    radial-gradient(1200px 600px at 50% -10%, rgba(120, 40, 200, 0.25), transparent 60%),
-    radial-gradient(900px 500px at 100% 110%, rgba(0, 180, 255, 0.16), transparent 55%),
-    radial-gradient(900px 500px at 0% 110%, rgba(255, 40, 160, 0.14), transparent 55%),
+    radial-gradient(1200px 600px at 50% -10%, rgba(200, 50, 30, 0.28), transparent 60%),
+    radial-gradient(900px 500px at 100% 110%, rgba(255, 140, 40, 0.18), transparent 55%),
+    radial-gradient(900px 500px at 0% 110%, rgba(255, 60, 100, 0.16), transparent 55%),
     var(--bg);
   background-attachment: fixed;
   color: var(--fg);
@@ -62,11 +63,11 @@ body {
 @keyframes cta-glow {
   0%,
   100% {
-    box-shadow: 0 0 40px rgba(56, 232, 255, 0.5);
+    box-shadow: 0 0 40px rgb(var(--drums) / 0.5);
     transform: scale(1);
   }
   50% {
-    box-shadow: 0 0 70px rgba(56, 232, 255, 0.85);
+    box-shadow: 0 0 70px rgb(var(--drums) / 0.85);
     transform: scale(1.04);
   }
 }
@@ -83,10 +84,47 @@ body {
   animation: cta-glow 1.6s ease-in-out infinite;
 }
 
+/* Fist gesture: the whole UI "punches" on each beat — quick scale-down with a
+   brightness pop. Retriggered per beat by removing/re-adding the class. */
+@keyframes beat-punch {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  30% {
+    transform: scale(0.972);
+    filter: brightness(1.3);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.beat-punch {
+  animation: beat-punch 160ms ease-out;
+}
+
+/* Amber vignette that flashes with the punch. */
+@keyframes vignette-flash {
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.vignette-flash {
+  animation: vignette-flash 220ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-step-burst,
   .animate-beat-pulse,
-  .animate-cta-glow {
+  .animate-cta-glow,
+  .beat-punch,
+  .vignette-flash {
     animation: none;
   }
 }

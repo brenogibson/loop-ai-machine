@@ -17,6 +17,7 @@ import {
   type SurpriseLangPref,
 } from "@/lib/surprise/synth";
 import {
+  bassOctaveFor,
   buildScaleGrid,
   rowsFromDegrees,
   type ScaleName,
@@ -162,7 +163,11 @@ export async function POST(req: Request) {
       // Honor the session key if set, so bass and lead share one key.
       const root = body.musicalKey?.root ?? synth.root;
       const scale = body.musicalKey?.scale ?? synth.scale;
-      const octave = SYNTH_OCTAVE[instrument];
+      // Bass register is capped at octave 2 — high roots start an octave lower.
+      const octave =
+        instrument === "bass"
+          ? bassOctaveFor(root, scale)
+          : SYNTH_OCTAVE[instrument];
       const rows = rowsFromDegrees(root, scale, octave, synth.notes);
       if (rows.length === 0) {
         return NextResponse.json(

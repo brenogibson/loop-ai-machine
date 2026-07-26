@@ -2,6 +2,7 @@ import * as Tone from "tone";
 import { STEPS_PER_BAR, type Pattern, type SynthInstrument } from "./pattern";
 import type { SurpriseTrackSource } from "./surprise";
 import { createSynthVoice, type SynthVoice } from "./synth";
+import { getMasterBus } from "./master-bus";
 
 export type SampleMap = Record<string, string>;
 
@@ -26,7 +27,7 @@ export class DrumEngine {
     let v = this.synthVoices.get(instrument);
     if (!v) {
       v = createSynthVoice(instrument);
-      v.output.toDestination();
+      v.output.connect(getMasterBus().input);
       this.synthVoices.set(instrument, v);
     }
     return v;
@@ -34,7 +35,9 @@ export class DrumEngine {
 
   async load(samples: SampleMap): Promise<void> {
     if (this.loaded) return;
-    this.players = new Tone.Players({ urls: samples }).toDestination();
+    this.players = new Tone.Players({ urls: samples }).connect(
+      getMasterBus().input,
+    );
     await Tone.loaded();
     this.loaded = true;
   }
@@ -53,7 +56,7 @@ export class DrumEngine {
       (time, stepIndex) => {
         const p = this.getPattern();
         for (const track of p.tracks) {
-          if (!track.steps[stepIndex]) continue;
+          if (track.muted || !track.steps[stepIndex]) continue;
           if (track.meta?.kind === "surprise") {
             const src = this.surpriseSources.get(track.sampleId);
             if (!src) continue;
@@ -108,6 +111,7 @@ export class DrumEngine {
   registerSurpriseSource(source: SurpriseTrackSource): void {
     const existing = this.surpriseSources.get(source.sampleId);
     if (existing) existing.dispose();
+    source.output.connect(getMasterBus().input);
     this.surpriseSources.set(source.sampleId, source);
   }
 

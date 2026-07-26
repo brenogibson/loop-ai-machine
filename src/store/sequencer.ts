@@ -9,11 +9,20 @@ import {
   type Track,
 } from "@/lib/audio/pattern";
 import type { SurpriseStyle } from "@/lib/claude/surprise-tool";
-import { transposeNote, type ScaleName } from "@/lib/audio/scale";
+import {
+  BASS_MAX_OCTAVE,
+  capNoteOctave,
+  transposeNote,
+  type ScaleName,
+} from "@/lib/audio/scale";
 
 // The session's musical key. The first synth generated fixes it; every later
 // synth (bass, lead, Claude) reuses it so they're always in the same key.
 export type MusicalKey = { root: string; scale: ScaleName };
+
+// Build-up & drop phase, shared between the DROP button and the hands-up
+// gesture so both UIs stay in sync whoever triggered it.
+export type DropPhase = "idle" | "building" | "dropped";
 
 export type ChatMessage = {
   role: "user" | "assistant";
@@ -47,6 +56,11 @@ type SequencerState = {
   setSurpriseTheme: (theme: string) => void;
   musicalKey: MusicalKey | null;
   setMusicalKey: (key: MusicalKey) => void;
+  dropPhase: DropPhase;
+  setDropPhase: (phase: DropPhase) => void;
+  // How many harmonic moves the session has made (drives the circle-of-fifths
+  // journey: which kind of move comes next, and how far from home we are).
+  keyStep: number;
   setSurpriseLang: (lang: SurpriseLang) => void;
   setPattern: (pattern: Pattern, vibeId?: string | null) => void;
   applyClaudePattern: (pattern: Pattern, vibeLabel: string) => void;
@@ -61,6 +75,8 @@ type SequencerState = {
   setSynthTracks: (instrument: SynthInstrument, tracks: Track[]) => void;
   transposeSynthTo: (key: MusicalKey) => void;
   removeTrackBySampleId: (sampleId: string) => void;
+  toggleTrackMute: (sampleId: string) => void;
+  setTracksMuted: (sampleIds: string[], muted: boolean) => void;
   resetSession: () => void;
 };
 
@@ -92,6 +108,9 @@ export const useSequencer = create<SequencerState>((set) => ({
   setSurpriseTheme: (theme) => set({ surpriseTheme: theme }),
   musicalKey: null,
   setMusicalKey: (key) => set({ musicalKey: key }),
+  dropPhase: "idle",
+  setDropPhase: (phase) => set({ dropPhase: phase }),
+  keyStep: 0,
   setSurpriseLang: (lang) => set({ surpriseLang: lang }),
   setPattern: (pattern, vibeId = null) =>
     set({
@@ -102,6 +121,7 @@ export const useSequencer = create<SequencerState>((set) => ({
       // A vibe button replaces the whole pattern (synth included), so the key
       // resets — the next synth picks a fresh one matching the new vibe.
       musicalKey: null,
+      keyStep: 0,
     }),
   applyClaudePattern: (pattern, vibeLabel) =>
     set((state) => ({
@@ -154,16 +174,24 @@ export const useSequencer = create<SequencerState>((set) => ({
       if (from.root === key.root && from.scale === key.scale) return state;
       const tracks = state.pattern.tracks.map((t) => {
         if (t.meta?.kind !== "synth") return t;
-        const note = transposeNote(
+        let note = transposeNote(
           t.meta.note,
           from.root,
           from.scale,
           key.root,
           key.scale,
         );
+        // Bass must stay in bass register even when transposed to a high key.
+        if (t.meta.instrument === "bass") {
+          note = capNoteOctave(note, BASS_MAX_OCTAVE);
+        }
         return { ...t, meta: { ...t.meta, note } };
       });
-      return { pattern: { ...state.pattern, tracks }, musicalKey: key };
+      return {
+        pattern: { ...state.pattern, tracks },
+        musicalKey: key,
+        keyStep: state.keyStep + 1,
+      };
     }),
   removeTrackBySampleId: (sampleId) =>
     set((state) => ({
@@ -172,6 +200,27 @@ export const useSequencer = create<SequencerState>((set) => ({
         tracks: state.pattern.tracks.filter((t) => t.sampleId !== sampleId),
       },
     })),
+  toggleTrackMute: (sampleId) =>
+    set((state) => ({
+      pattern: {
+        ...state.pattern,
+        tracks: state.pattern.tracks.map((t) =>
+          t.sampleId === sampleId ? { ...t, muted: !t.muted } : t,
+        ),
+      },
+    })),
+  setTracksMuted: (sampleIds, muted) =>
+    set((state) => {
+      const ids = new Set(sampleIds);
+      return {
+        pattern: {
+          ...state.pattern,
+          tracks: state.pattern.tracks.map((t) =>
+            ids.has(t.sampleId) ? { ...t, muted } : t,
+          ),
+        },
+      };
+    }),
   setBpm: (bpm) => set((s) => ({ pattern: { ...s.pattern, bpm } })),
   toggleStep: (trackIndex, stepIndex) =>
     set((s) => {
@@ -203,5 +252,6 @@ export const useSequencer = create<SequencerState>((set) => ({
       chat: [],
       surpriseHistory: [],
       musicalKey: null,
+      keyStep: 0,
     }),
 }));

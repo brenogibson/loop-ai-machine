@@ -13,14 +13,16 @@ export const STYLES = [
   "dub",
   "harmony",
   "chopped",
+  "radio_dj",
+  "vinyl",
 ] as const;
 export type SurpriseStyle = (typeof STYLES)[number];
 
 // Temporarily disabled styles. Remove from this list to re-enable — the effect
 // chains in lib/audio/surprise.ts stay intact so re-enabling needs no code.
-// stutter superseded by the BPM-synced "slice"; robotic/pitched_down muddy;
-// pitched_up/pitched_down both pull the voice off-key; harmony (choir) and
-// slice (rhythmic echo) didn't sound good over the beat.
+// After live testing only the dry/rhythmic styles survived (telephone,
+// chopped): wet tails (melodic/reverse/dub) smear into the beat and megaphone
+// over-distorts Polly voices. radio_dj/vinyl are their dry replacements.
 export const DISABLED_STYLES: SurpriseStyle[] = [
   "robotic",
   "pitched_down",
@@ -28,6 +30,10 @@ export const DISABLED_STYLES: SurpriseStyle[] = [
   "stutter",
   "harmony",
   "slice",
+  "melodic",
+  "reverse",
+  "megaphone",
+  "dub",
 ];
 
 export const ACTIVE_STYLES: SurpriseStyle[] = STYLES.filter(
@@ -73,7 +79,7 @@ export const SURPRISE_TOOL: Anthropic.Tool = {
         type: "string",
         enum: [...ACTIVE_STYLES],
         description:
-          "Como a voz é processada: melodic (reverb + chorus, etérea), reverse (frase vai e volta, eco palíndromo), telephone (filtro de rádio), megaphone (locutor de estádio, quente e potente), dub (eco dub que vai sumindo), chopped (cada palavra cai num step do grid, bem ritmado — ótimo pra frases de 2-4 palavras). Varie sempre.",
+          "Como a voz é processada: telephone (filtro de rádio antigo, nostálgico), chopped (cada palavra cai num step do grid, bem ritmado — ótimo pra frases de 2-4 palavras), radio_dj (locutor de FM, nítido e potente), vinyl (disco antigo empoeirado, lo-fi). Varie sempre.",
       },
       steps: {
         type: "array",

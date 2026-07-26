@@ -56,6 +56,8 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
         audioBase64: base64,
         bpm: opts.pattern.bpm,
       });
+      // Offline context: straight to destination (no live master-FX bus).
+      source.output.toDestination();
       surpriseSources.set(track.sampleId, source);
     }
 
@@ -83,7 +85,7 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
     const sequence = new Tone.Sequence<number>(
       (time, stepIndex) => {
         for (const track of opts.pattern.tracks) {
-          if (!track.steps[stepIndex]) continue;
+          if (track.muted || !track.steps[stepIndex]) continue;
           if (track.meta?.kind === "surprise") {
             const src = surpriseSources.get(track.sampleId);
             if (!src) continue;

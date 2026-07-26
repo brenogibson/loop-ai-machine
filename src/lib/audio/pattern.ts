@@ -26,6 +26,7 @@ export type Track = {
   sampleId: string;
   steps: Step[];
   volumeDb: number;
+  muted?: boolean;
   meta?: TrackMeta;
 };
 

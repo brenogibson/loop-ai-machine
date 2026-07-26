@@ -71,12 +71,10 @@ const SURPRISE_SYSTEM = `Você é o "DJ surpresa" de uma drum machine. Sua funç
 - Rotacione as vozes ao longo da sessão — não use sempre a mesma.
 
 ## Estilos de processamento disponíveis
-- melodic: reverb + chorus, voz com cor — lofi, ambient
-- reverse: frase toca e volta (eco palíndromo) — psicodélico, vibes agressivas
-- telephone: filtro estreito — lofi, ambient nostálgico
-- megaphone: locutor de estádio, quente e potente — funk, trap, hype
-- dub: eco dub que vai sumindo — dnb, ambient, reggae/dub
+- telephone: filtro estreito de rádio antigo — lofi, ambient, nostálgico
 - chopped: cada palavra é cortada e cai num 1/16 do grid, super ritmado — funciona melhor com frases de 2 a 4 palavras; qualquer vibe
+- radio_dj: locutor de FM, nítido, comprimido e presente — funk, trap, hype
+- vinyl: disco antigo empoeirado, lo-fi com leve ondulação — lofi, samba, chill
 
 ## Steps e volume
 - Steps: 1-2 tipicamente. Step 0 = drop, step 8 = meio do compasso (sempre impacta), 4/12 = batida do snare, 15 = fantasma.

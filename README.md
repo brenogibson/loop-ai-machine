@@ -1,17 +1,21 @@
 # Loop Machine
 
-Drum machine em loop que roda no browser, com Claude (via AWS Bedrock) co-produzindo o beat e Amazon Polly dando voz às "surpresas" que entram no meio da música. Feito pra ser exposto em eventos: qualquer pessoa — técnica ou não — consegue criar e baixar um loop em 3–5 minutos, com visual neon/synthwave reativo ao som.
+Drum machine em loop que roda no browser, com Claude (via AWS Bedrock) co-produzindo o beat e Amazon Polly dando voz às "surpresas" que entram no meio da música. Feito pra ser exposto em eventos: qualquer pessoa — técnica ou não — consegue criar e levar um loop em 3–5 minutos, com visual neon em tons quentes reagindo ao som e controle por gestos na webcam.
 
 ## O que dá pra fazer
 
 - **Começar num toque** — overlay de entrada que escolhe um beat e já sai tocando (destrava o áudio no primeiro clique).
 - **Clicar num estilo** (Funk, Lo-Fi, Trap, Samba, Drum & Bass, Ambient) e já sair tocando.
-- **Editar o grid de 16 steps** ao vivo, organizado em **seções minimizáveis** (Bateria, Baixo, Melodia, Vozes) — cada uma com cabeçalho grande pra touchscreen e indicador que pulsa no tempo.
+- **Editar o grid de 16 steps** ao vivo, organizado em **seções minimizáveis** (Bateria, Baixo, Melodia, Vozes) com cabeçalhos touch-friendly, botão de **gerar** dentro de cada seção e **mute** por linha e por seção.
 - **Conversar com a IA** ("deixa mais agressivo", "bota um baixo pesado", "fala 'que pancada' picotado"). O Claude escolhe sozinho entre **três ferramentas**: mexer no beat, adicionar uma linha de synth, ou criar uma frase falada.
-- **Adicionar synth** (baixo e melodia) travado em escala — gerado pelo Claude ou pelos botões, sempre afinado. Dá pra **trocar o tom** e o **clima** (escala) transpondo o que já existe.
-- **Clicar em Surpresa** e o Claude inventa uma frase curta (≤4 palavras, natural), escolhe um efeito (melódico, reverso, telefone, megafone, dub, picotado), a Polly fala, e a frase vira uma track editável. Um campo de **tema** direciona as frases (ex: "futebol", "amor").
-- **Baixar MP3** do loop atual (drums + synth + surpresas), renderizado client-side.
-- **Nova Sessão** + timeout de inatividade reseta tudo pra próxima pessoa.
+- **Adicionar synth** (baixo e melodia) travado em escala — sempre afinado, baixo limitado ao registro grave, melodia com no máximo 2 díades de harmonia por loop.
+- **Evoluir a harmonia** — um botão único caminha pelo **círculo das quintas** (desce uma quinta por clique, vira maior/menor a cada 4 passos, volta pra casa em 12), transpondo baixo/melodia existentes. A música *evolui* em vez de sortear tom.
+- **Criar Surpresas** — o Claude inventa uma frase curta (≤4 palavras), escolhe efeito (`telephone`, `chopped`, `radio_dj`, `vinyl` — todos secos/rítmicos), a Polly fala com time-stretch pro compasso, e vira track editável. Campo de **tema** direciona as frases; toggle **PT/EN**.
+- **🚀 DROP** — build-up de 2 compassos (riser + filtro fechando + gate apertando) e estado "dropado" **segurado até você soltar**. Via botão ou via **gesto**.
+- **👋 Gestos na webcam** (MediaPipe local, nada sai do browser): levantar as **duas mãos** inicia o countdown/build e dropa; abaixar volta ao normal. Preview com esqueleto das mãos.
+- **Visualizador de fundo** — aurora de luz difusa (blur pesado, sem linhas) que respira com o espectro real do mix. **Brilho constante por fotossensibilidade** — o movimento vem da forma, nunca de pulso de luminância.
+- **📤 Levar meu loop** — renderiza o MP3 no browser, sobe pro S3 privado e mostra um **QR com URL pré-assinada (10 min)**: a pessoa escaneia e baixa o arquivo, que sobrevive ao fim do site. Página `/s/<id>` de replay como bônus.
+- **Baixar MP3** local e **Nova Sessão** + timeout de inatividade pro próximo visitante.
 
 ## Stack
 
@@ -21,135 +25,151 @@ Drum machine em loop que roda no browser, com Claude (via AWS Bedrock) co-produz
 | Sequencer | Tone.js (Transport + Sequence) |
 | Estado | Zustand |
 | Synth | Tone.js (MonoSynth/Synth + PolySynth), geração travada em escala |
+| Master FX | Bus único (Filter → Tremolo → Freeverb) + taps FFT/Meter pro visualizador |
+| Gestos | MediaPipe Tasks Vision (GestureRecognizer, WASM/GPU) — assets locais em `public/` |
 | IA conversacional | Claude Sonnet 4.6 via Amazon Bedrock (`us.anthropic.claude-sonnet-4-6`) |
 | Tool use | 3 tools (`update_pattern`, `generate_surprise`, `generate_synth`) + prompt caching |
 | TTS das surpresas | Amazon Polly (vozes generativas e neurais em PT-BR e EN-US) |
-| Efeitos de áudio | Tone.js PitchShift / BitCrusher / Freeverb / Chorus / Distortion / FeedbackDelay / GrainPlayer / Filters |
+| Share | S3 privado + URL pré-assinada (10 min) + QR (`qrcode`) |
 | Export MP3 | Tone.Offline + `@breezystack/lamejs` (client-side) |
 
-Toda a inteligência roda na AWS — não há `ANTHROPIC_API_KEY`. O SDK `@anthropic-ai/bedrock-sdk` autentica via credenciais AWS padrão.
+Toda a inteligência roda na AWS — não há `ANTHROPIC_API_KEY`. O SDK `@anthropic-ai/bedrock-sdk` autentica via credenciais AWS padrão. **Regra da conta: nada é público** — o bucket de shares é fechado e o acesso é só por URL pré-assinada.
 
 ## Arquitetura
 
 ```
-[Browser: Next.js + Tone.js + Zustand]
+[Browser: Next.js + Tone.js + Zustand + MediaPipe]
     │
     ├── /api/claude        → Bedrock (Claude + 3 tools: update_pattern / generate_surprise / generate_synth)
-    │
-    ├── /api/surprise      → Bedrock (Claude escolhe frase + voz + efeito + steps)
-    │                       → Polly SynthesizeSpeech (MP3 base64)
+    ├── /api/surprise      → Bedrock (frase + voz + efeito + steps) → Polly (MP3 base64)
+    ├── /api/share         → S3 privado (JSON do loop + MP3) → URL pré-assinada 10 min
+    ├── /s/<id>            → página pública de replay (enquanto o app estiver no ar)
     │
     └── client-side only
-        ├── Drum engine    → Tone.Players + Sequence
-        ├── Synth          → Tone.PolySynth por instrumento (bass/lead), notas travadas em escala
-        ├── Surprise audio → Web Audio buffer + effect chain + time-stretch (GrainPlayer)
-        ├── Export MP3     → Tone.Offline recria o grafo (drums+synth+surpresas), lamejs codifica
-        └── Samples base   → /public/samples (kicks, snares, hats, bass, fx…)
+        ├── Drum engine    → Tone.Players + Sequence (+ mute por track)
+        ├── Synth          → PolySynth por instrumento, notas travadas em escala
+        ├── Master bus     → Filter → Tremolo → Freeverb → out (+ FFT/Meter taps)
+        │                    └─ performDrop/releaseDrop/cancelDrop (build-up & drop)
+        ├── Gestos         → MediaPipe GestureRecognizer (duas mãos no alto = drop)
+        ├── Visualizer     → canvas fullscreen, aurora difusa via FFT real
+        ├── Surprise audio → GrainPlayer (time-stretch pro compasso) + FX chains
+        ├── Export MP3     → Tone.Offline recria o grafo (SEM master FX — são performance)
+        └── Samples base   → /public/samples
 ```
 
 ## Conceitos principais
 
 ### Pattern e tracks
-O `Pattern` (`src/lib/audio/pattern.ts`) é um BPM + swing + lista de `Track`. Cada track tem 16 steps binários (toca/não toca) e um `meta` opcional que define o tipo:
-- **drum** (`meta` ausente) — toca um sample do catálogo.
-- **surprise** (`meta.kind === "surprise"`) — frase falada com efeito.
-- **synth** (`meta.kind === "synth"`) — uma nota de um instrumento (bass/lead). Várias linhas de synth formam um mini piano-roll.
+O `Pattern` (`src/lib/audio/pattern.ts`) é um BPM + swing + lista de `Track`. Cada track tem 16 steps binários, `muted` opcional, e um `meta` que define o tipo: **drum** (`meta` ausente), **surprise** (frase falada) ou **synth** (uma nota de bass/lead — várias linhas formam um mini piano-roll).
 
-### Synth travado em escala
-`src/lib/audio/scale.ts` garante que tudo que um synth toca fica dentro de uma tonalidade (`musicalKey` no store: root + escala). O Claude descreve riffs por **grau** (1 = tônica), nunca por nota absoluta, então não há como desafinar. O primeiro synth da sessão fixa a tonalidade; os seguintes a reusam. Trocar tom/clima transpõe o que já está no grid preservando as edições.
+### Synth travado em escala + jornada harmônica
+`src/lib/audio/scale.ts` garante afinação: o Claude descreve riffs por **grau** (1 = tônica), nunca nota absoluta. A tonalidade da sessão (`musicalKey`) é fixada pelo primeiro synth e compartilhada por todos. O botão "Evoluir harmonia" usa `nextKeyStep` — círculo das quintas real: desce uma quinta por passo (resolução V→I), flip maior↔menor a cada 4 passos, 12 passos = volta completa. O baixo tem teto de registro (`BASS_MAX_OCTAVE = 2`): tônicas agudas começam uma oitava abaixo e a transposição rebaixa notas que estourariam.
+
+### Master FX bus e drop
+Todas as fontes ao vivo passam por `src/lib/audio/master-bus.ts` (o export MP3 não — efeitos de performance ficam fora do arquivo). O drop tem 3 fases: `performDrop` (build de 2 compassos: filtro fecha + riser de ruído + gate aperta), estado **dropado segurado** (reverb bloom + filtro aberto), e `releaseDrop`/`cancelDrop` sob comando do usuário (botão ou gesto).
+
+### Gestos (MediaPipe local)
+`src/lib/gestures/recognizer.ts` roda o GestureRecognizer em WASM com **assets commitados** (`public/mediapipe-wasm/` + `public/models/gesture_recognizer.task`) — zero CDN no evento. Um único gesto **simétrico** (duas mãos no alto) de propósito: o MediaPipe troca a identidade esquerda/direita das mãos com frequência, o que quebrava controles assimétricos. Debounce por streak de frames.
 
 ### Surpresas
-`/api/surprise` faz o Claude inventar a frase + escolher voz/efeito/steps; a lógica de validação e síntese (Polly) vive em `src/lib/surprise/synth.ts`, compartilhada com o agente do chat. Frases são curtas (≤4 palavras), naturais, com fonética simplificada pra soar bem no TTS. Efeitos ativos: `melodic`, `reverse`, `telephone`, `megaphone`, `dub`, `chopped`.
+Frases ≤4 palavras, naturais, fonética simplificada (sem respellings tipo "bíti"). Efeitos ativos são todos **secos/rítmicos** (caudas molhadas embolavam no beat): `telephone`, `chopped` (sílabas no grid), `radio_dj`, `vinyl`. A síntese (validação + Polly) vive em `src/lib/surprise/synth.ts`, compartilhada entre o botão e o agente do chat.
+
+### Tema visual
+Paleta quente (pôr do sol/brasas) em 4 variáveis CSS nomeadas por **função** — `--drums`, `--surprise`, `--synth`, `--beat` (`globals.css`). Trocar o tema = editar 4 linhas. Exceção: os canvas (visualizador, esqueleto de mãos) duplicam as cores como literais porque a API de canvas não resolve CSS vars (comentado no código).
 
 ## Rodando localmente
 
-Pré-requisitos: Node 22+, credenciais AWS configuradas (`aws sts get-caller-identity` deve funcionar), região `us-east-1` com Bedrock liberado pros modelos Claude e Polly habilitado.
+Pré-requisitos: Node 22+, credenciais AWS (`aws sts get-caller-identity`), região `us-east-1` com Bedrock (Claude) e Polly habilitados, e um bucket S3 privado pro share (`SHARE_BUCKET`, default `loop-ai-machine-shares-<account>`).
 
 ```bash
 npm install
 AWS_REGION=us-east-1 npm run dev
 ```
 
-Abre `http://localhost:3000`.
-
-Build de produção:
+### HTTPS / acesso de outros dispositivos na rede
+Câmera (gestos) e AudioWorklet só funcionam em **contexto seguro** (localhost ou HTTPS). Pra acessar de outro PC/tablet na LAN:
 
 ```bash
-npm run build
-AWS_REGION=us-east-1 npm run start
+# gere um certificado incluindo o IP da máquina (uma vez):
+mkcert -key-file certificates/dev-key.pem -cert-file certificates/dev-cert.pem localhost 127.0.0.1 ::1 <SEU_IP>
+
+AWS_REGION=us-east-1 npm run dev -- --hostname 0.0.0.0 --experimental-https \
+  --experimental-https-key ./certificates/dev-key.pem \
+  --experimental-https-cert ./certificates/dev-cert.pem
 ```
+
+Adicione o IP/host em `allowedDevOrigins` no `next.config.ts` (o Next bloqueia origens cruzadas no dev). No outro dispositivo, aceite o certificado auto-assinado (Avançado → Continuar).
+
+### Docker
+
+```bash
+docker build -t loop-machine .
+docker run -p 3000:3000 -e AWS_REGION=us-east-1 \
+  -v ~/.aws:/root/.aws:ro loop-machine
+```
+
+Build standalone do Next (`output: "standalone"` no `next.config.ts`).
 
 ## Estrutura do repositório
 
 ```
 src/
   app/
-    page.tsx                         # layout "palco" (sequencer à esquerda, IA à direita)
-    layout.tsx                       # metadata + fontes
-    globals.css                      # tema neon/synthwave + animações
+    page.tsx                         # palco (sequencer à esquerda, IA/ações à direita)
+    globals.css                      # paleta quente por função + animações
     _components/
       StartOverlay.tsx               # onboarding de 1 toque
       VibeButtons.tsx                # 6 presets de estilo
-      StepSequencer.tsx              # grid 16×N em seções minimizáveis + play/BPM
-      SurpriseButton.tsx             # gera surpresa + seletor de idioma
-      SurpriseTheme.tsx              # campo de tema das frases
-      SynthDemoButton.tsx            # gera baixo/melodia generativos
-      KeyButton.tsx                  # trocar tom + clima (transpõe)
-      ExportButton.tsx               # render MP3 client-side
+      StepSequencer.tsx              # grid em seções (gerar/mute/collapse) + play/BPM
+      KeyButton.tsx                  # jornada harmônica (círculo das quintas)
+      DropButton.tsx                 # build-up & drop segurado
+      GestureControl.tsx             # webcam: duas mãos no alto = drop
+      Visualizer.tsx                 # aurora difusa reagindo ao FFT do mix
+      ShareButton.tsx                # MP3 → S3 → QR pré-assinado
+      ExportButton.tsx               # download MP3 local
+      SurpriseTheme.tsx              # tema das frases + idioma PT/EN
       ChatPanel.tsx                  # conversa com Claude (3 tools)
       SessionControls.tsx            # reset + idle timeout
     api/
-      claude/route.ts                # conversa → update_pattern / generate_surprise / generate_synth
-      surprise/route.ts              # Claude → Polly → audio base64
+      claude/route.ts                # 3 tools; synth por graus resolvidos no server
+      surprise/route.ts              # Claude → Polly → base64
+      share/route.ts, share/[id]/    # criar share (+MP3 pré-assinado) / buscar
+    s/[id]/                          # página pública de replay
   lib/
     audio/
-      engine.ts                      # DrumEngine (Players + Sequence + synth voices)
-      synth.ts                       # vozes de synth (bass/lead) Tone.js
-      scale.ts                       # geração travada em escala, transposição
-      surprise.ts                    # createSurpriseSource + chains de FX + time-stretch
-      offline-render.ts              # Tone.Offline + lamejs (drums+synth+surpresas)
-      pattern.ts                     # tipos (Pattern, Track, Step, metas)
-      engine-registry.ts             # singleton accessor
-      surprise-registry.ts           # base64 por sampleId (pra export)
-    claude/
-      client.ts                      # AnthropicBedrock + model id
-      prompt.ts                      # system prompt + catálogo + pattern atual
-      tools.ts                       # tool update_pattern
-      surprise-tool.ts               # tool generate_surprise + vozes/estilos
-      synth-tool.ts                  # tool generate_synth
-    surprise/
-      synth.ts                       # validação + Polly compartilhados (botão + chat)
-      polly.ts                       # wrapper SynthesizeSpeech + SSML {en}…{/en}
-    samples/catalog.ts               # fetch /catalog.json
-    net/fetch-json.ts                # retry + mensagens amigáveis
-    session/reset.ts                 # hardResetSession
-    vibes.ts                         # presets hardcoded
-  store/sequencer.ts                 # Zustand store
+      engine.ts                      # DrumEngine (players + synth + surpresas + mute)
+      master-bus.ts                  # FX master + drop + taps de visualização
+      synth.ts, synth-generate.ts    # vozes + gerador local (bass/lead)
+      scale.ts                       # escalas, graus, transposição, círculo das quintas
+      surprise.ts                    # FX chains + GrainPlayer + chopped
+      offline-render.ts              # export MP3 (sem master FX)
+      pattern.ts                     # tipos
+    gestures/recognizer.ts           # MediaPipe wrapper (handsUp debounced)
+    claude/                          # client Bedrock, prompts, 3 tool schemas
+    surprise/                        # síntese compartilhada, Polly, useSurprise
+    share/                           # tipos + S3 store (putShare/putShareMp3/getShare)
+  store/sequencer.ts                 # Zustand (pattern, key, dropPhase, tema…)
 public/
-  catalog.json                       # metadata de todos os samples
-  samples/*.wav                      # kicks, snares, hats, bass, fx
-scripts/
-  generate-samples.ts                # (stub) pipeline futura pra Stable Audio via Replicate
-  upload-catalog.ts                  # (stub) sync pra S3 + CloudFront
+  samples/*.wav                      # samples base
+  mediapipe-wasm/, models/           # assets MediaPipe locais (sem CDN)
 ```
 
 ## Robustez pra evento
 
-- Retry exponencial em 429/5xx nas chamadas das APIs.
-- Mensagens de erro em PT-BR amigáveis (`fetchJson` + `ApiError.friendly`).
-- Idle timeout → modal "tem alguém aí?" com countdown → reset automático.
-- Prompt caching no Claude (system prompt + catálogo) → redução de custo nas chamadas seguintes.
-- Surpresas e synth preservados entre atualizações do chat; vibe buttons resetam "limpo".
-- `prefers-reduced-motion` desliga as animações neon.
+- Retry exponencial em 429/5xx; mensagens de erro amigáveis em PT-BR.
+- Idle timeout → "tem alguém aí?" → reset automático.
+- Prompt caching no Claude (system + catálogo).
+- Surpresas e synth preservados nas edições via chat; vibe buttons resetam limpo.
+- `prefers-reduced-motion` desliga todas as animações; visualizador com brilho constante (fotossensibilidade).
+- Gestos 100% locais (WASM), assets commitados — sem dependência de rede além da AWS.
 
 ## Ainda pendente
 
-- Geração de melodia do Claude usar o algoritmo estruturado (harmonia → ritmo → melodia) que já roda nos botões.
-- Botões demo de synth (`// TEMP`) viram features definitivas ou saem.
-- Service worker pra precache de samples.
-- Share link (`/s/xxx`).
-- Pipeline real de samples via Replicate/Stable Audio.
-- Deploy na AWS.
+- Melodia via Claude usar o gerador estruturado local (hoje usa graus diretos).
+- Calibração fina dos gestos na câmera do evento.
+- Stress test de sessão longa (vazamentos de nós de áudio).
+- Deploy na AWS (Dockerfile pronto; falta infra).
+- Lifecycle rule pro bucket de shares (hoje os MP3s ficam).
 
 ## Licença
 

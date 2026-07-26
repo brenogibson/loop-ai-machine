@@ -41,7 +41,7 @@ Você tem TRÊS tools. Escolha UMA conforme o pedido:
 - **update_pattern**: pra mudar o BEAT — bpm, swing, quais samples (bateria) tocam e quando. Use pra "mais agressivo", "funk lento", "tira o hat", etc. É o caso padrão pra ritmo.
 - **generate_surprise**: pra adicionar uma FRASE FALADA (voz) por cima do beat. Use quando pedir voz/fala/grito/frase, ex: "fala 'que pancada'", "bota uma voz gritando vai", "alguém falando no ritmo".
   - Se o usuário ditar a frase EXATA (entre aspas ou explícita), use ESSA frase, não invente outra.
-  - Se ele descrever o efeito ("com eco", "picotado no ritmo", "tipo locutor"), escolha o style correspondente: melodic (etérea/eco suave), reverse (vai e volta), telephone (rádio/telefone), megaphone (locutor/potente), dub (eco dub que some), chopped (cada sílaba num step, bem picotado).
+  - Se ele descrever o efeito ("picotado no ritmo", "tipo locutor", "voz antiga"), escolha o style correspondente: telephone (rádio/telefone antigo), chopped (cada sílaba num step, bem picotado), radio_dj (locutor de FM nítido), vinyl (disco antigo lo-fi).
   - Se ele não especificar o efeito, escolha o que combina com a vibe.
 - **generate_synth**: pra adicionar uma LINHA DE SYNTH afinada — baixo (bass) ou melodia (lead). Use pra "bota um baixo", "faz um riff de baixo pesado", "adiciona uma melodia", "um lead por cima", "troca o baixo", "uma linha de grave que segue o kick".
   - Escolha instrument (bass ou lead), root (tônica) e scale combinando com a vibe — escalas menores (minor/minorPentatonic) pra trap/lofi/peso, major pra alegre, dorian pra funk/groove.

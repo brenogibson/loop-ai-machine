@@ -65,7 +65,8 @@ export function ChatPanel() {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Mirror SurpriseButton: build the audio source, register it, add the track.
+  // Mirror the grid's "+ Surpresa" flow: build the audio source, register it,
+  // add the track.
   const applySurprise = useCallback(
     async (s: SurpriseData) => {
       const engine = getCurrentEngine();
@@ -163,7 +164,7 @@ export function ChatPanel() {
       <div className="flex items-center justify-between text-xs">
         <div className="text-zinc-400 uppercase tracking-wide">AI producer</div>
         {vibeLabel && (
-          <div className="text-[rgb(var(--cyan))]">vibe: {vibeLabel}</div>
+          <div className="text-[rgb(var(--drums))]">vibe: {vibeLabel}</div>
         )}
       </div>
 
@@ -180,7 +181,7 @@ export function ChatPanel() {
                 className={
                   m.role === "user"
                     ? "text-zinc-200"
-                    : "text-[rgb(var(--cyan))] italic"
+                    : "text-[rgb(var(--drums))] italic"
                 }
               >
                 <span className="text-zinc-500 mr-2">
@@ -213,12 +214,12 @@ export function ChatPanel() {
           onChange={(e) => setInput(e.target.value)}
           placeholder="o que você quer? (enter pra enviar)"
           disabled={loading}
-          className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[rgb(var(--cyan))] focus:shadow-[0_0_14px_rgba(56,232,255,0.3)] disabled:opacity-50 transition-shadow"
+          className="flex-1 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-[rgb(var(--drums))] focus:shadow-[0_0_14px_rgb(var(--drums)/0.3)] disabled:opacity-50 transition-shadow"
         />
         <button
           type="submit"
           disabled={loading || !input.trim()}
-          className="px-5 py-2 rounded-full bg-[rgb(var(--cyan))] text-black font-semibold disabled:opacity-40 hover:brightness-110 shadow-[0_0_18px_rgba(56,232,255,0.4)] transition-all"
+          className="px-5 py-2 rounded-full bg-[rgb(var(--drums))] text-black font-semibold disabled:opacity-40 hover:brightness-110 shadow-[0_0_18px_rgb(var(--drums)/0.4)] transition-all"
         >
           {loading ? "…" : "enviar"}
         </button>
@@ -231,7 +232,7 @@ export function ChatPanel() {
             key={s}
             onClick={() => send(s)}
             disabled={loading}
-            className="px-3 py-1 text-xs rounded-full bg-white/5 border border-white/10 text-zinc-300 hover:border-[rgb(var(--cyan))]/50 hover:text-[rgb(var(--cyan))] disabled:opacity-40 transition-colors"
+            className="px-3 py-1 text-xs rounded-full bg-white/5 border border-white/10 text-zinc-300 hover:border-[rgb(var(--drums))]/50 hover:text-[rgb(var(--drums))] disabled:opacity-40 transition-colors"
           >
             {s}
           </button>

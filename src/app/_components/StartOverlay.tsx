@@ -37,7 +37,7 @@ export function StartOverlay() {
 
   return (
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-8 bg-[var(--bg)]/80 backdrop-blur-md p-6 text-center">
-      <h1 className="text-5xl sm:text-7xl font-black tracking-tighter uppercase bg-gradient-to-r from-[rgb(var(--cyan))] via-[rgb(var(--fg))] to-[rgb(var(--magenta))] bg-clip-text text-transparent drop-shadow-[0_0_40px_rgba(255,60,200,0.35)]">
+      <h1 className="text-5xl sm:text-7xl font-black tracking-tighter uppercase bg-gradient-to-r from-[rgb(var(--drums))] via-[rgb(var(--fg))] to-[rgb(var(--surprise))] bg-clip-text text-transparent drop-shadow-[0_0_40px_rgb(var(--surprise)/0.35)]">
         Loop Machine
       </h1>
       <p className="text-zinc-300 max-w-md text-base sm:text-lg">
@@ -49,8 +49,8 @@ export function StartOverlay() {
         disabled={!engineReady || starting}
         className={[
           "px-12 py-5 rounded-full text-xl font-bold tracking-wide transition-all",
-          "bg-[rgb(var(--cyan))] text-black",
-          "shadow-[0_0_45px_rgba(56,232,255,0.6)] hover:shadow-[0_0_70px_rgba(56,232,255,0.85)] hover:scale-105",
+          "bg-[rgb(var(--drums))] text-black",
+          "shadow-[0_0_45px_rgb(var(--drums)/0.6)] hover:shadow-[0_0_70px_rgb(var(--drums)/0.85)] hover:scale-105",
           "disabled:opacity-50 disabled:cursor-wait disabled:scale-100",
           engineReady && !starting ? "animate-cta-glow" : "",
         ].join(" ")}

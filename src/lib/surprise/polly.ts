@@ -11,7 +11,7 @@ let cached: PollyClient | null = null;
 
 export function getPolly(): PollyClient {
   if (cached) return cached;
-  cached = new PollyClient({ region: process.env.AWS_REGION ?? "us-east-1" });
+  cached = new PollyClient({ region: "us-east-1" });
   return cached;
 }
 

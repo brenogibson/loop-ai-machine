@@ -14,6 +14,9 @@ export type SurpriseTrackSource = {
   player: Tone.GrainPlayer;
   players: Tone.GrainPlayer[];
   effects: Tone.ToneAudioNode[];
+  // End of this source's effect chain. NOT connected anywhere by default — the
+  // caller routes it (live → master bus; offline export → destination).
+  output: Tone.ToneAudioNode;
   startOffset: number;
   makeupDb: number;
   // Fire the sound for a given step. Default sources play the whole phrase on
@@ -308,6 +311,38 @@ function buildEffectChain(style: SurpriseStyle): ChainSpec {
       const reverb = new Tone.Freeverb({ roomSize: 0.3, dampening: 4000, wet: 0.18 });
       return { input: reverb, output: reverb, nodes: [reverb], chop: true };
     }
+    case "radio_dj": {
+      // FM-announcer: wider band than telephone, compressed hard for punch,
+      // with a presence boost — crisp and dry, sits on top of the beat.
+      const hp = new Tone.Filter({ type: "highpass", frequency: 120, Q: 0.7 });
+      const presence = new Tone.Filter({ type: "peaking", frequency: 3200, Q: 1, gain: 6 });
+      const comp = new Tone.Compressor({ threshold: -24, ratio: 8, attack: 0.002, release: 0.1 });
+      hp.connect(presence);
+      presence.connect(comp);
+      return {
+        input: hp,
+        output: comp,
+        nodes: [hp, presence, comp],
+        makeupDb: 3,
+      };
+    }
+    case "vinyl": {
+      // Dusty record: gentle bit reduction + narrowed band + a slow ~0.5Hz
+      // "wow" wobble. Dry and nostalgic, no tail to smear into the beat.
+      const crush = new Tone.BitCrusher({ bits: 6 });
+      const lp = new Tone.Filter({ type: "lowpass", frequency: 6500, Q: 0.5 });
+      const hp = new Tone.Filter({ type: "highpass", frequency: 200, Q: 0.5 });
+      const wow = new Tone.Tremolo({ frequency: 0.5, depth: 0.3, wet: 1 }).start();
+      crush.connect(lp);
+      lp.connect(hp);
+      hp.connect(wow);
+      return {
+        input: crush,
+        output: wow,
+        nodes: [crush, lp, hp, wow],
+        makeupDb: 3,
+      };
+    }
   }
 }
 
@@ -377,7 +412,6 @@ export async function createSurpriseSource(input: {
   // guard skip the very first step. Wait until loaded:true is set.
   await Tone.loaded();
   for (const p of players) p.connect(chain.input);
-  chain.output.toDestination();
 
   // Spacing between chopped slices. Each slice plays at its natural duration
   // (buffer length ÷ playbackRate); if we spaced them tighter than that, slices
@@ -425,6 +459,7 @@ export async function createSurpriseSource(input: {
     player: players[0],
     players,
     effects: chain.nodes,
+    output: chain.output,
     startOffset: silenceOffset,
     makeupDb: chain.makeupDb ?? 0,
     trigger,

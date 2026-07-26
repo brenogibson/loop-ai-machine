@@ -56,7 +56,7 @@ export function ExportButton() {
         className={[
           "px-5 py-2 rounded-full border font-medium text-sm transition-all",
           "bg-white/5 border-white/10 text-zinc-200",
-          "hover:border-[rgb(var(--cyan))] hover:text-[rgb(var(--cyan))] hover:shadow-[0_0_16px_rgba(56,232,255,0.3)]",
+          "hover:border-[rgb(var(--drums))] hover:text-[rgb(var(--drums))] hover:shadow-[0_0_16px_rgb(var(--drums)/0.3)]",
           "disabled:opacity-60 disabled:cursor-wait",
         ].join(" ")}
       >
