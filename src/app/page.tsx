@@ -6,6 +6,7 @@ import { ShareButton } from "./_components/ShareButton";
 import { StartOverlay } from "./_components/StartOverlay";
 import { StepSequencer } from "./_components/StepSequencer";
 import { SurpriseTheme } from "./_components/SurpriseTheme";
+import { TextureToggle } from "./_components/TextureToggle";
 import { VibeButtons } from "./_components/VibeButtons";
 import { Visualizer } from "./_components/Visualizer";
 import { DropButton } from "./_components/DropButton";
@@ -46,6 +47,7 @@ export default function Home() {
           <DropButton />
           <div className="flex items-center gap-3 flex-wrap">
             <GestureControl />
+            <TextureToggle />
             <ShareButton />
             <ExportButton />
           </div>

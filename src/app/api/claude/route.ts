@@ -6,6 +6,7 @@ import { getClaude, CLAUDE_MODEL } from "@/lib/claude/client";
 import { UPDATE_PATTERN_TOOL } from "@/lib/claude/tools";
 import { SURPRISE_TOOL } from "@/lib/claude/surprise-tool";
 import { SYNTH_TOOL } from "@/lib/claude/synth-tool";
+import { COMPOSE_TOOL } from "@/lib/claude/compose-tool";
 import {
   SYSTEM_PROMPT,
   catalogBlock,
@@ -22,14 +23,34 @@ import {
   rowsFromDegrees,
   type ScaleName,
 } from "@/lib/audio/scale";
+import { DEFAULT_STYLE, STYLES, isStyleId } from "@/lib/audio/styles";
+import { isTimbreFor } from "@/lib/audio/timbres";
 import type { Catalog } from "@/lib/samples/catalog";
 import type { Pattern, Step, SynthInstrument, Track } from "@/lib/audio/pattern";
 
 type SynthArgs = {
   instrument: SynthInstrument;
+  timbre?: string;
   root: string;
   scale: ScaleName;
   notes: Array<{ degree: number; steps: number[] }>;
+  vibe_label: string;
+  commentary: string;
+};
+
+type ComposePart = {
+  timbre: string;
+  notes: Array<{ degree: number; steps: number[] }>;
+};
+
+type ComposeArgs = {
+  bpm: number;
+  swing: number;
+  drum_tracks: UpdatePatternArgs["tracks"];
+  root: string;
+  scale: ScaleName;
+  bass: ComposePart;
+  lead: ComposePart;
   vibe_label: string;
   commentary: string;
 };
@@ -45,6 +66,8 @@ type RequestBody = {
   // The session's locked key, if any synth already set it. When present it
   // overrides Claude's root/scale choice so all synths stay in the same key.
   musicalKey?: { root: string; scale: ScaleName } | null;
+  // Session style: shifts the bass register (e.g. D&B +1 keeps the reese audible).
+  styleId?: string;
 };
 
 let cachedCatalog: Catalog | null = null;
@@ -121,7 +144,7 @@ export async function POST(req: Request) {
       // Three tools: update_pattern (beat), generate_surprise (spoken phrase),
       // generate_synth (bass/lead line). tool_choice:any forces Claude to call
       // exactly one rather than replying with plain text.
-      tools: [UPDATE_PATTERN_TOOL, SURPRISE_TOOL, SYNTH_TOOL],
+      tools: [UPDATE_PATTERN_TOOL, SURPRISE_TOOL, SYNTH_TOOL, COMPOSE_TOOL],
       tool_choice: { type: "any" },
       messages: [{ role: "user", content: userMessage }],
     });
@@ -156,6 +179,69 @@ export async function POST(req: Request) {
       return NextResponse.json({ kind: "surprise", surprise: result.data, usage });
     }
 
+    if (toolUse.name === "compose_song") {
+      const args = toolUse.input as ComposeArgs;
+      const pattern = toPattern(
+        {
+          bpm: args.bpm,
+          swing: args.swing,
+          tracks: args.drum_tracks,
+          vibe_label: args.vibe_label,
+          commentary: args.commentary,
+        },
+        catalog,
+      );
+      if (pattern.tracks.length < 2) {
+        return NextResponse.json(
+          { error: "compose returned too few valid drum tracks" },
+          { status: 502 },
+        );
+      }
+      const styleId = isStyleId(body.styleId) ? body.styleId : DEFAULT_STYLE;
+      const bassShift = STYLES[styleId].identity.bassOctaveShift ?? 0;
+
+      const buildPart = (
+        instrument: SynthInstrument,
+        part: ComposePart,
+      ): Track[] | null => {
+        const octave =
+          instrument === "bass"
+            ? bassOctaveFor(args.root, args.scale) + bassShift
+            : SYNTH_OCTAVE[instrument];
+        const rows = rowsFromDegrees(args.root, args.scale, octave, part.notes);
+        if (rows.length === 0) return null;
+        const timbre = isTimbreFor(instrument, part.timbre)
+          ? part.timbre
+          : undefined;
+        return buildScaleGrid(
+          instrument,
+          args.root,
+          args.scale,
+          octave,
+          rows,
+          SYNTH_VOLUME[instrument],
+          timbre,
+        );
+      };
+
+      const bassTracks = buildPart("bass", args.bass);
+      const leadTracks = buildPart("lead", args.lead);
+
+      return NextResponse.json({
+        kind: "compose",
+        compose: {
+          pattern,
+          root: args.root,
+          scale: args.scale,
+          bassTracks,
+          leadTracks,
+          vibe_label: args.vibe_label,
+          commentary: args.commentary,
+        },
+        usage,
+      });
+    }
+
     if (toolUse.name === "generate_synth") {
       const synth = toolUse.input as SynthArgs;
       const instrument: SynthInstrument =
@@ -164,9 +250,11 @@ export async function POST(req: Request) {
       const root = body.musicalKey?.root ?? synth.root;
       const scale = body.musicalKey?.scale ?? synth.scale;
       // Bass register is capped at octave 2 — high roots start an octave lower.
+      const styleId = isStyleId(body.styleId) ? body.styleId : DEFAULT_STYLE;
       const octave =
         instrument === "bass"
-          ? bassOctaveFor(root, scale)
+          ? bassOctaveFor(root, scale) +
+            (STYLES[styleId].identity.bassOctaveShift ?? 0)
           : SYNTH_OCTAVE[instrument];
       const rows = rowsFromDegrees(root, scale, octave, synth.notes);
       if (rows.length === 0) {
@@ -175,6 +263,9 @@ export async function POST(req: Request) {
           { status: 502 },
         );
       }
+      const timbre = isTimbreFor(instrument, synth.timbre)
+        ? synth.timbre
+        : undefined;
       const tracks = buildScaleGrid(
         instrument,
         root,
@@ -182,6 +273,7 @@ export async function POST(req: Request) {
         octave,
         rows,
         SYNTH_VOLUME[instrument],
+        timbre,
       );
       return NextResponse.json({
         kind: "synth",

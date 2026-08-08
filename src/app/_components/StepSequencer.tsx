@@ -5,6 +5,7 @@ import { DrumEngine } from "@/lib/audio/engine";
 import { setCurrentEngine } from "@/lib/audio/engine-registry";
 import { fetchCatalog, sampleMapFrom } from "@/lib/samples/catalog";
 import { unregisterSurpriseAudio } from "@/lib/audio/surprise-registry";
+import { getStyleStage } from "@/lib/audio/style-stage";
 import { generateSynthRiff } from "@/lib/audio/synth-generate";
 import { useSurprise } from "@/lib/surprise/use-surprise";
 import type { Track } from "@/lib/audio/pattern";
@@ -110,13 +111,18 @@ export function StepSequencer() {
   const setTracksMuted = useSequencer((s) => s.setTracksMuted);
 
   useEffect(() => {
-    const engine = new DrumEngine(() => useSequencer.getState().pattern);
+    const engine = new DrumEngine(
+      () => useSequencer.getState().pattern,
+      () => useSequencer.getState().styleId,
+    );
     engineRef.current = engine;
     setCurrentEngine(engine);
     engine.setOnStep(setCurrentStep);
     fetchCatalog()
       .then((catalog) => engine.load(sampleMapFrom(catalog)))
       .then(() => {
+        // Apply the initial style color/texture chain.
+        getStyleStage().setStyle(useSequencer.getState().styleId);
         setLoaded(true);
         setEngineReady(true);
       })
@@ -128,6 +134,15 @@ export function StepSequencer() {
         state.pattern.swing !== prev.pattern.swing
       ) {
         engineRef.current?.syncTransport(state.pattern);
+      }
+      // Style switch: swap the color/texture chain and rebuild synth voices
+      // with the new style's patches.
+      if (state.styleId !== prev.styleId) {
+        getStyleStage().setStyle(state.styleId);
+        engineRef.current?.reloadSynthVoices();
+      }
+      if (state.textureOn !== prev.textureOn) {
+        getStyleStage().setTextureEnabled(state.textureOn);
       }
       // A vibe change wipes all surprise tracks (the preserve logic keeps them
       // across Claude chat updates, but vibe buttons fully reset).
@@ -442,7 +457,7 @@ function TrackRow({
     isSurprise && track.meta?.kind === "surprise"
       ? `${STYLE_EMOJI[track.meta.style] ?? "🎤"} ${track.meta.phrase}`
       : isSynth && track.meta?.kind === "synth"
-        ? `${SYNTH_EMOJI[track.meta.instrument]} ${track.meta.note}`
+        ? `${SYNTH_EMOJI[track.meta.instrument]} ${track.meta.note}${track.meta.timbre ? ` · ${track.meta.timbre}` : ""}`
         : track.sampleId;
   const accent = isSurprise
     ? "var(--surprise)"

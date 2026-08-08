@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { DrumEngine } from "@/lib/audio/engine";
+import { getStyleStage } from "@/lib/audio/style-stage";
+import { DEFAULT_STYLE } from "@/lib/audio/styles";
 import { createSurpriseSource } from "@/lib/audio/surprise";
 import { fetchCatalog, sampleMapFrom } from "@/lib/samples/catalog";
 import type { SurpriseStyle } from "@/lib/claude/surprise-tool";
@@ -18,9 +20,12 @@ export function SharePlayer({ share }: { share: SharePayload }) {
 
   useEffect(() => {
     let disposed = false;
-    const engine = new DrumEngine(() => share.pattern);
+    const styleId = share.styleId ?? DEFAULT_STYLE;
+    const engine = new DrumEngine(() => share.pattern, () => styleId);
     engineRef.current = engine;
     engine.setOnStep(setStep);
+    // Restore the shared loop's sound identity (color/texture/timbre).
+    getStyleStage().setStyle(styleId);
 
     (async () => {
       const catalog = await fetchCatalog();

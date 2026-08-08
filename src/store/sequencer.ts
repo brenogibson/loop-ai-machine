@@ -15,6 +15,7 @@ import {
   transposeNote,
   type ScaleName,
 } from "@/lib/audio/scale";
+import { DEFAULT_STYLE, STYLES, isStyleId, type StyleId } from "@/lib/audio/styles";
 
 // The session's musical key. The first synth generated fixes it; every later
 // synth (bass, lead, Claude) reuses it so they're always in the same key.
@@ -61,6 +62,12 @@ type SequencerState = {
   // How many harmonic moves the session has made (drives the circle-of-fifths
   // journey: which kind of move comes next, and how far from home we are).
   keyStep: number;
+  // Sound identity of the session. Unlike vibeId (a "preset indicator" that
+  // nulls on any manual edit), styleId persists through edits and chat beat
+  // updates — the mix keeps its color until another style is picked.
+  styleId: StyleId;
+  textureOn: boolean;
+  setTextureOn: (on: boolean) => void;
   setSurpriseLang: (lang: SurpriseLang) => void;
   setPattern: (pattern: Pattern, vibeId?: string | null) => void;
   applyClaudePattern: (pattern: Pattern, vibeLabel: string) => void;
@@ -73,6 +80,16 @@ type SequencerState = {
   pushSurpriseHistory: (phrase: string) => void;
   addSurpriseTrack: (input: AddSurpriseTrackInput) => void;
   setSynthTracks: (instrument: SynthInstrument, tracks: Track[]) => void;
+  // One-shot full composition from Claude: drums replace the pattern, bass and
+  // lead grids replace any existing synth, surprises are preserved, and the
+  // key is locked — all in a single state update.
+  applyComposition: (input: {
+    pattern: Pattern;
+    bassTracks: Track[] | null;
+    leadTracks: Track[] | null;
+    key: MusicalKey;
+    vibeLabel: string;
+  }) => void;
   transposeSynthTo: (key: MusicalKey) => void;
   removeTrackBySampleId: (sampleId: string) => void;
   toggleTrackMute: (sampleId: string) => void;
@@ -111,9 +128,12 @@ export const useSequencer = create<SequencerState>((set) => ({
   dropPhase: "idle",
   setDropPhase: (phase) => set({ dropPhase: phase }),
   keyStep: 0,
+  styleId: DEFAULT_STYLE,
+  textureOn: true,
+  setTextureOn: (on) => set({ textureOn: on }),
   setSurpriseLang: (lang) => set({ surpriseLang: lang }),
   setPattern: (pattern, vibeId = null) =>
-    set({
+    set((state) => ({
       pattern,
       vibeId,
       vibeLabel: null,
@@ -122,7 +142,9 @@ export const useSequencer = create<SequencerState>((set) => ({
       // resets — the next synth picks a fresh one matching the new vibe.
       musicalKey: null,
       keyStep: 0,
-    }),
+      // Picking a known style updates the session's sound identity.
+      styleId: isStyleId(vibeId) ? vibeId : state.styleId,
+    })),
   applyClaudePattern: (pattern, vibeLabel) =>
     set((state) => ({
       pattern: {
@@ -166,12 +188,40 @@ export const useSequencer = create<SequencerState>((set) => ({
         pattern: { ...state.pattern, tracks: [...kept, ...newTracks] },
       };
     }),
+  applyComposition: ({ pattern, bassTracks, leadTracks, key, vibeLabel }) =>
+    set((state) => {
+      // Keep surprises from the old pattern; drums and synth are replaced
+      // wholesale by the composition.
+      const surprises = state.pattern.tracks.filter(
+        (t) => t.meta?.kind === "surprise",
+      );
+      return {
+        pattern: {
+          ...pattern,
+          tracks: [
+            ...pattern.tracks,
+            ...(bassTracks ?? []),
+            ...(leadTracks ?? []),
+            ...surprises,
+          ],
+        },
+        vibeId: null,
+        vibeLabel,
+        musicalKey: key,
+        keyStep: 0,
+      };
+    }),
   transposeSynthTo: (key) =>
     set((state) => {
       const from = state.musicalKey;
       // Nothing to transpose from, or the key didn't change.
       if (!from) return { musicalKey: key };
       if (from.root === key.root && from.scale === key.scale) return state;
+      // The bass ceiling follows the style's register shift (e.g. D&B sits an
+      // octave higher so its dark reese patch stays audible).
+      const bassCap =
+        BASS_MAX_OCTAVE +
+        (STYLES[state.styleId].identity.bassOctaveShift ?? 0);
       const tracks = state.pattern.tracks.map((t) => {
         if (t.meta?.kind !== "synth") return t;
         let note = transposeNote(
@@ -183,7 +233,7 @@ export const useSequencer = create<SequencerState>((set) => ({
         );
         // Bass must stay in bass register even when transposed to a high key.
         if (t.meta.instrument === "bass") {
-          note = capNoteOctave(note, BASS_MAX_OCTAVE);
+          note = capNoteOctave(note, bassCap);
         }
         return { ...t, meta: { ...t.meta, note } };
       });
@@ -253,5 +303,6 @@ export const useSequencer = create<SequencerState>((set) => ({
       surpriseHistory: [],
       musicalKey: null,
       keyStep: 0,
+      styleId: DEFAULT_STYLE,
     }),
 }));

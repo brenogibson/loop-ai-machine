@@ -18,6 +18,9 @@ export type SynthTrackMeta = {
   kind: "synth";
   instrument: SynthInstrument;
   note: string; // absolute pitch, e.g. "C2", "Eb4"
+  // Named timbre override (see lib/audio/timbres.ts) — e.g. Claude picking a
+  // flute for a Zelda-style melody. Absent = the style's default patch.
+  timbre?: string;
 };
 
 export type TrackMeta = SurpriseTrackMeta | SynthTrackMeta;

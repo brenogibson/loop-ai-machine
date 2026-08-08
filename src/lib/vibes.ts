@@ -26,22 +26,6 @@ export const VIBES: Vibe[] = [
     },
   },
   {
-    id: "lofi",
-    label: "Lo-Fi",
-    emoji: "🎧",
-    pattern: {
-      bpm: 82,
-      swing: 0.25,
-      tracks: [
-        { sampleId: "kick_tight", steps: stepsFrom([0, 8]), volumeDb: -1 },
-        { sampleId: "snare_fat", steps: stepsFrom([4, 12]), volumeDb: -6 },
-        { sampleId: "hat_open", steps: stepsFrom([2, 6, 10, 14]), volumeDb: -14 },
-        { sampleId: "perc_rim", steps: stepsFrom([5, 13]), volumeDb: -9 },
-        { sampleId: "fx_swoosh", steps: stepsFrom([7]), volumeDb: -12 },
-      ],
-    },
-  },
-  {
     id: "trap",
     label: "Trap",
     emoji: "🔥",
@@ -93,22 +77,6 @@ export const VIBES: Vibe[] = [
         { sampleId: "clap_sharp", steps: stepsFrom([4, 12]), volumeDb: -3 },
         { sampleId: "bass_saw", steps: stepsFrom([0, 6, 10]), volumeDb: -3 },
         { sampleId: "fx_riser", steps: stepsFrom([14]), volumeDb: -10 },
-      ],
-    },
-  },
-  {
-    id: "ambient",
-    label: "Ambient",
-    emoji: "🌌",
-    pattern: {
-      bpm: 70,
-      swing: 0.35,
-      tracks: [
-        { sampleId: "kick_boom", steps: stepsFrom([0]), volumeDb: -3 },
-        { sampleId: "snare_fat", steps: stepsFrom([8]), volumeDb: -8 },
-        { sampleId: "hat_open", steps: stepsFrom([4, 12]), volumeDb: -14 },
-        { sampleId: "bass_sub", steps: stepsFrom([0]), volumeDb: -6 },
-        { sampleId: "fx_swoosh", steps: stepsFrom([10]), volumeDb: -11 },
       ],
     },
   },

@@ -67,7 +67,7 @@ export const SURPRISE_TOOL: Anthropic.Tool = {
         type: "string",
         enum: ["pt-BR", "en-US"],
         description:
-          "Idioma da frase. Escolha pt-BR pra funk/samba/lofi brasileiro; en-US pra trap/dnb/ambient internacional. Varie.",
+          "Idioma da frase. Escolha pt-BR pra funk/samba brasileiro; en-US pra trap/dnb internacional. Varie.",
       },
       voice_id: {
         type: "string",

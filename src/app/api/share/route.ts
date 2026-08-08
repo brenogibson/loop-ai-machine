@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { putShare, putShareMp3 } from "@/lib/share/store";
 import type { SharePayload } from "@/lib/share/types";
 import type { Pattern } from "@/lib/audio/pattern";
+import { isStyleId } from "@/lib/audio/styles";
 
 type RequestBody = {
   pattern: Pattern;
   vibeLabel?: string | null;
+  styleId?: string;
   surpriseAudio?: Record<string, string>;
   // Client-rendered MP3 of the loop. Stored in the private bucket; the
   // response carries a presigned URL (10 min) that the QR code points at.
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
     version: 1,
     createdAt: new Date().toISOString(),
     vibeLabel: body.vibeLabel ?? null,
+    styleId: isStyleId(body.styleId) ? body.styleId : undefined,
     pattern: body.pattern,
     surpriseAudio,
   };

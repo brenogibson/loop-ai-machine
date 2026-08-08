@@ -40,11 +40,11 @@ export function ShareButton() {
     setBusy(true);
     setError(null);
     try {
-      const { pattern, vibeLabel } = useSequencer.getState();
+      const { pattern, vibeLabel, styleId } = useSequencer.getState();
 
       // Render the loop to MP3 client-side (same path as the download button).
       const catalog = await fetchCatalog();
-      const blob = await renderLoopToMp3({ pattern, catalog, bars: 2 });
+      const blob = await renderLoopToMp3({ pattern, catalog, bars: 2, styleId });
       const mp3Base64 = await blobToBase64(blob);
 
       // Bundle audio for the surprises present in the pattern (for /s replay).
@@ -62,7 +62,7 @@ export function ShareButton() {
         id: string;
         mp3: { url: string } | null;
       }>("/api/share", {
-        body: { pattern, vibeLabel, surpriseAudio, mp3Base64 },
+        body: { pattern, vibeLabel, styleId, surpriseAudio, mp3Base64 },
       });
 
       const pageUrl = `${window.location.origin}/s/${res.id}`;

@@ -29,6 +29,16 @@ type SynthData = {
   commentary: string;
 };
 
+type ComposeData = {
+  pattern: import("@/lib/audio/pattern").Pattern;
+  root: string;
+  scale: import("@/lib/audio/scale").ScaleName;
+  bassTracks: Track[] | null;
+  leadTracks: Track[] | null;
+  vibe_label: string;
+  commentary: string;
+};
+
 type ClaudeResponse =
   | {
       kind: "pattern";
@@ -38,16 +48,17 @@ type ClaudeResponse =
       usage: unknown;
     }
   | { kind: "surprise"; surprise: SurpriseData; usage: unknown }
-  | { kind: "synth"; synth: SynthData; usage: unknown };
+  | { kind: "synth"; synth: SynthData; usage: unknown }
+  | { kind: "compose"; compose: ComposeData; usage: unknown };
 
 let chatSurpriseCounter = 0;
 
 const SUGGESTIONS = [
+  "faz uma música estilo Zelda",
   "deixa mais agressivo",
   "bota um baixo pesado",
-  "adiciona uma melodia por cima",
+  "toca a melodia numa flauta",
   'fala "que pancada" picotado no ritmo',
-  'voz gritando "sobe o som" com eco',
 ];
 
 export function ChatPanel() {
@@ -57,6 +68,7 @@ export function ChatPanel() {
   const addSurpriseTrack = useSequencer((s) => s.addSurpriseTrack);
   const pushSurpriseHistory = useSequencer((s) => s.pushSurpriseHistory);
   const setSynthTracks = useSequencer((s) => s.setSynthTracks);
+  const applyComposition = useSequencer((s) => s.applyComposition);
   const setMusicalKey = useSequencer((s) => s.setMusicalKey);
   const vibeLabel = useSequencer((s) => s.vibeLabel);
 
@@ -105,7 +117,7 @@ export function ChatPanel() {
       setInput("");
       setLoading(true);
       try {
-        const { pattern: currentPattern, surpriseLang, musicalKey } =
+        const { pattern: currentPattern, surpriseLang, musicalKey, styleId } =
           useSequencer.getState();
         const data = await fetchJson<ClaudeResponse>("/api/claude", {
           body: {
@@ -113,6 +125,7 @@ export function ChatPanel() {
             pattern: currentPattern,
             surpriseLang,
             musicalKey,
+            styleId,
           },
         });
         if (data.kind === "surprise") {
@@ -121,6 +134,19 @@ export function ChatPanel() {
           appendChat({
             role: "assistant",
             text: `🎤 "${s.phrase}" (${s.style}) — ${s.commentary}`,
+          });
+        } else if (data.kind === "compose") {
+          const cp = data.compose;
+          applyComposition({
+            pattern: cp.pattern,
+            bassTracks: cp.bassTracks,
+            leadTracks: cp.leadTracks,
+            key: { root: cp.root, scale: cp.scale },
+            vibeLabel: cp.vibe_label,
+          });
+          appendChat({
+            role: "assistant",
+            text: `🎼 ${cp.commentary}`,
           });
         } else if (data.kind === "synth") {
           setSynthTracks(data.synth.instrument, data.synth.tracks);
@@ -155,6 +181,7 @@ export function ChatPanel() {
       applySurprise,
       setSynthTracks,
       setMusicalKey,
+      applyComposition,
       loading,
     ],
   );

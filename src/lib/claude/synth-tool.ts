@@ -1,6 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import type { SynthInstrument } from "@/lib/audio/pattern";
 import type { ScaleName } from "@/lib/audio/scale";
+import { BASS_TIMBRES, LEAD_TIMBRES } from "@/lib/audio/timbres";
 
 export const SYNTH_INSTRUMENTS: SynthInstrument[] = ["bass", "lead"];
 export const SYNTH_SCALES: ScaleName[] = [
@@ -27,10 +28,18 @@ export const SYNTH_TOOL: Anthropic.Tool = {
         enum: SYNTH_INSTRUMENTS,
         description: "bass = linha grave que segue o kick; lead = melodia por cima.",
       },
+      timbre: {
+        type: "string",
+        enum: [...Object.keys(LEAD_TIMBRES), ...Object.keys(BASS_TIMBRES)],
+        description:
+          `Opcional: instrumento/timbre da linha. Pra lead: ${Object.entries(LEAD_TIMBRES).map(([id, t]) => `${id} (${t.label})`).join(", ")}. ` +
+          `Pra bass: ${Object.entries(BASS_TIMBRES).map(([id, t]) => `${id} (${t.label})`).join(", ")}. ` +
+          "Escolha quando o pedido evocar um instrumento (flauta, videogame, sino…); omita pra usar o som padrão do estilo.",
+      },
       root: {
         type: "string",
         enum: ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"],
-        description: "Tônica da escala. Combine com a vibe (ex: menores pra trap/lofi).",
+        description: "Tônica da escala. Combine com a vibe (ex: menores pra trap/dnb, maior pra samba).",
       },
       scale: {
         type: "string",

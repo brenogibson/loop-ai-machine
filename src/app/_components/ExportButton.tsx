@@ -25,9 +25,9 @@ export function ExportButton() {
     setRendering(true);
     setError(null);
     try {
-      const { pattern, vibeLabel, vibeId } = useSequencer.getState();
+      const { pattern, vibeLabel, vibeId, styleId } = useSequencer.getState();
       const catalog = await fetchCatalog();
-      const blob = await renderLoopToMp3({ pattern, catalog, bars: 2 });
+      const blob = await renderLoopToMp3({ pattern, catalog, bars: 2, styleId });
       const url = URL.createObjectURL(blob);
       const vibePart = slugify(vibeLabel ?? vibeId);
       const filename = `loop-ai-${vibePart}-${pattern.bpm}bpm.mp3`;

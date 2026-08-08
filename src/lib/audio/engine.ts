@@ -2,41 +2,60 @@ import * as Tone from "tone";
 import { STEPS_PER_BAR, type Pattern, type SynthInstrument } from "./pattern";
 import type { SurpriseTrackSource } from "./surprise";
 import { createSynthVoice, type SynthVoice } from "./synth";
-import { getMasterBus } from "./master-bus";
+import { getStyleStage } from "./style-stage";
+import { DEFAULT_STYLE, STYLES, type StyleId } from "./styles";
+import { timbrePatch } from "./timbres";
 
 export type SampleMap = Record<string, string>;
 
 export type StepCallback = (step: number) => void;
 export type PatternGetter = () => Pattern;
+export type StyleIdGetter = () => StyleId;
 
 export class DrumEngine {
   private players: Tone.Players | null = null;
   private sequence: Tone.Sequence<number> | null = null;
   private getPattern: PatternGetter;
+  private getStyleId: StyleIdGetter;
   private onStep: StepCallback | null = null;
   private loaded = false;
   private surpriseSources: Map<string, SurpriseTrackSource> = new Map();
-  // One synth voice per instrument, created lazily and shared by all its rows.
-  private synthVoices: Map<SynthInstrument, SynthVoice> = new Map();
+  // One synth voice per instrument+timbre combo, created lazily and shared by
+  // all rows using it ("lead:" = style default patch, "lead:flute" = timbre).
+  private synthVoices: Map<string, SynthVoice> = new Map();
 
-  constructor(getPattern: PatternGetter) {
+  // getStyleId is injected (like getPattern) — the engine must not import the
+  // store, since SharePlayer instantiates it outside the main app.
+  constructor(getPattern: PatternGetter, getStyleId: StyleIdGetter = () => DEFAULT_STYLE) {
     this.getPattern = getPattern;
+    this.getStyleId = getStyleId;
   }
 
-  private synthVoice(instrument: SynthInstrument): SynthVoice {
-    let v = this.synthVoices.get(instrument);
+  private synthVoice(instrument: SynthInstrument, timbre?: string): SynthVoice {
+    const key = `${instrument}:${timbre ?? ""}`;
+    let v = this.synthVoices.get(key);
     if (!v) {
-      v = createSynthVoice(instrument);
-      v.output.connect(getMasterBus().input);
-      this.synthVoices.set(instrument, v);
+      const patch =
+        timbrePatch(instrument, timbre) ??
+        STYLES[this.getStyleId()].synth[instrument];
+      v = createSynthVoice(instrument, patch);
+      v.output.connect(getStyleStage().input);
+      this.synthVoices.set(key, v);
     }
     return v;
+  }
+
+  // Style changed: drop the cached voices so the next triggered step lazily
+  // rebuilds them with the new style's patch.
+  reloadSynthVoices(): void {
+    for (const v of this.synthVoices.values()) v.dispose();
+    this.synthVoices.clear();
   }
 
   async load(samples: SampleMap): Promise<void> {
     if (this.loaded) return;
     this.players = new Tone.Players({ urls: samples }).connect(
-      getMasterBus().input,
+      getStyleStage().input,
     );
     await Tone.loaded();
     this.loaded = true;
@@ -64,7 +83,7 @@ export class DrumEngine {
             continue;
           }
           if (track.meta?.kind === "synth") {
-            this.synthVoice(track.meta.instrument).triggerNote(
+            this.synthVoice(track.meta.instrument, track.meta.timbre).triggerNote(
               track.meta.note,
               time,
               track.volumeDb,
@@ -111,7 +130,7 @@ export class DrumEngine {
   registerSurpriseSource(source: SurpriseTrackSource): void {
     const existing = this.surpriseSources.get(source.sampleId);
     if (existing) existing.dispose();
-    source.output.connect(getMasterBus().input);
+    source.output.connect(getStyleStage().input);
     this.surpriseSources.set(source.sampleId, source);
   }
 

@@ -5,6 +5,8 @@ import type { Catalog } from "@/lib/samples/catalog";
 import { surpriseAudioEntries } from "./surprise-registry";
 import { createSurpriseSource } from "./surprise";
 import { createSynthVoice, type SynthVoice } from "./synth";
+import { DEFAULT_STYLE, STYLES, type StyleId } from "./styles";
+import { timbrePatch } from "./timbres";
 import type { SynthInstrument } from "./pattern";
 import type { SurpriseStyle } from "@/lib/claude/surprise-tool";
 
@@ -12,6 +14,10 @@ export type RenderOptions = {
   pattern: Pattern;
   catalog: Catalog;
   bars?: number; // default 2
+  // Sound identity: the style's color chain + texture ARE part of the export
+  // (the file should sound like what the user hears). Gesture/drop FX from the
+  // master bus remain excluded — those are live performance.
+  styleId?: StyleId;
 };
 
 // Offline-render the current loop into an AudioBuffer, then encode to MP3.
@@ -35,9 +41,17 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
     opts.catalog.samples.map((s) => [s.id, s.url]),
   );
 
+  const style = STYLES[opts.styleId ?? DEFAULT_STYLE];
+
   const toneBuffer = await Tone.Offline(async ({ transport }) => {
+    // The style's color chain is rebuilt in this offline context; every source
+    // routes through it so the file carries the style identity. (Gesture/drop
+    // master-bus FX are intentionally NOT recreated here.)
+    const color = style.createColor();
+    color.output.toDestination();
+
     // Load plain samples.
-    const players = new Tone.Players({ urls: sampleMap }).toDestination();
+    const players = new Tone.Players({ urls: sampleMap }).connect(color.input);
     await Tone.loaded();
 
     // Build surprise sources in this offline context.
@@ -56,22 +70,32 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
         audioBase64: base64,
         bpm: opts.pattern.bpm,
       });
-      // Offline context: straight to destination (no live master-FX bus).
-      source.output.toDestination();
+      source.output.connect(color.input);
       surpriseSources.set(track.sampleId, source);
     }
 
-    // Synth voices for this offline context, created lazily per instrument.
-    const synthVoices = new Map<SynthInstrument, SynthVoice>();
-    const synthVoice = (instrument: SynthInstrument): SynthVoice => {
-      let v = synthVoices.get(instrument);
+    // Synth voices for this offline context, created lazily per
+    // instrument+timbre, matching the live engine's resolution order.
+    const synthVoices = new Map<string, SynthVoice>();
+    const synthVoice = (
+      instrument: SynthInstrument,
+      timbre?: string,
+    ): SynthVoice => {
+      const key = `${instrument}:${timbre ?? ""}`;
+      let v = synthVoices.get(key);
       if (!v) {
-        v = createSynthVoice(instrument);
-        v.output.toDestination();
-        synthVoices.set(instrument, v);
+        const patch = timbrePatch(instrument, timbre) ?? style.synth[instrument];
+        v = createSynthVoice(instrument, patch);
+        v.output.connect(color.input);
+        synthVoices.set(key, v);
       }
       return v;
     };
+
+    // Style texture bed for the whole render.
+    const texture = style.createTexture();
+    texture.output.connect(color.input);
+    texture.start(0);
 
     // Make sure every player's buffer finished loading before the transport
     // starts — otherwise the Sequence callback can fire on an unloaded player
@@ -93,7 +117,7 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
             continue;
           }
           if (track.meta?.kind === "synth") {
-            synthVoice(track.meta.instrument).triggerNote(
+            synthVoice(track.meta.instrument, track.meta.timbre).triggerNote(
               track.meta.note,
               time,
               track.volumeDb,

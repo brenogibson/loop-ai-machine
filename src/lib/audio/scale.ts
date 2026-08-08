@@ -237,20 +237,23 @@ function degreeNote(
 // Generate a randomized-but-musical bassline as rows (note → steps), locked to
 // the scale. Rules that keep it groovy: the root anchors the downbeat, notes
 // land mostly on strong/off-beats, and the line WALKS between degrees instead
-// of hammering the root. Guarantees a minimum density (5-8 hits) — the old
-// version sampled with replacement into a Set and often collapsed to 2-3 hits.
-const BASS_MIN_HITS = 5;
-
+// of hammering the root. Density is style-driven via hitsRange (defaults to
+// the classic 5-8) and always guaranteed — onsets are drawn WITHOUT
+// replacement so the target is actually reached.
 export function generateBassline(
   root: string,
   scale: ScaleName,
   octave = 2,
+  hitsRange: [number, number] = [5, 8],
 ): SynthRowInput[] {
   const notes = scaleNotes(root, scale, octave, 5); // low → high, root first
 
   // Onsets: anchors first, then fill from a weighted pool WITHOUT replacement
   // until the target density is reached — no collisions, no sparse riffs.
-  const target = BASS_MIN_HITS + Math.floor(Math.random() * 4); // 5..8 hits
+  const [minHits, maxHits] = hitsRange;
+  const target =
+    Math.max(2, minHits) +
+    Math.floor(Math.random() * Math.max(1, maxHits - minHits + 1));
   const onsets = new Set<number>([0, pick([8, 10])]); // downbeat + mid anchor
   const pool = [4, 12, 2, 6, 10, 14, ...(Math.random() < 0.5 ? [3, 7, 11, 15] : [])]
     .filter((s) => !onsets.has(s));
@@ -349,23 +352,37 @@ function chordDegrees(rootDegree: number): number[] {
 // rhythmic motif, chord-tones on strong beats and passing tones on weak ones,
 // a clear contour, and resolution to a stable note. This reads as a melody
 // rather than a random walk, with a consistent note count.
+export type LeadDensity = "sparse" | "normal" | "busy";
+
+const LEAD_CELLS: Record<LeadDensity, number[][]> = {
+  sparse: [
+    [0, 6],
+    [0, 4],
+    [0, 3, 6],
+  ],
+  normal: [
+    [0, 3, 6],
+    [0, 4, 6],
+    [0, 3, 4, 6],
+  ],
+  busy: [
+    [0, 2, 4, 6],
+    [0, 3, 4, 6],
+    [0, 2, 3, 6],
+  ],
+};
+
 export function generateLead(
   root: string,
   scale: ScaleName,
   octave = 4,
+  density: LeadDensity = "normal",
 ): SynthRowInput[] {
   const prog = pick(PROGRESSIONS);
 
   // Rhythmic motif: a half-bar (8 steps) cell that we repeat — repetition is
-  // what makes a line feel intentional. Density picks how busy the cell is.
-  const cells = [
-    [0, 3, 6], // syncopated
-    [0, 4, 6], // straight-ish
-    [0, 2, 4, 6], // busy
-    [0, 6], // sparse
-    [0, 3, 4, 6],
-  ];
-  const cell = pick(cells);
+  // what makes a line feel intentional. Style density picks the cell pool.
+  const cell = pick(LEAD_CELLS[density]);
 
   const hits: Array<{ note: string; step: number }> = [];
   let degree = pick([0, 2, 4]); // start on a chord-friendly degree
@@ -439,9 +456,10 @@ export function buildSynthTracks(
   instrument: SynthInstrument,
   rows: SynthRowInput[],
   defaultVolumeDb: number,
+  timbre?: string,
 ): Track[] {
   return rows.map((row) => {
-    const meta: SynthTrackMeta = { kind: "synth", instrument, note: row.note };
+    const meta: SynthTrackMeta = { kind: "synth", instrument, note: row.note, timbre };
     const steps: Step[] =
       row.steps.length > 0 ? stepsFrom(row.steps) : emptySteps();
     return {
@@ -488,6 +506,7 @@ export function buildScaleGrid(
   octave: number,
   hits: SynthRowInput[],
   defaultVolumeDb: number,
+  timbre?: string,
 ): Track[] {
   const degrees = SCALE_STEPS[scale].length;
   // Cover at least one octave from `octave`, but extend to span every note the
@@ -515,5 +534,5 @@ export function buildScaleGrid(
   const rows: SynthRowInput[] = span
     .reverse() // high → low (piano-roll order)
     .map((note) => ({ note, steps: stepsByNote.get(note) ?? [] }));
-  return buildSynthTracks(instrument, rows, defaultVolumeDb);
+  return buildSynthTracks(instrument, rows, defaultVolumeDb, timbre);
 }
