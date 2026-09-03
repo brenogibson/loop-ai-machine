@@ -74,23 +74,26 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
       surpriseSources.set(track.sampleId, source);
     }
 
-    // Synth voices for this offline context, created lazily per
-    // instrument+timbre, matching the live engine's resolution order.
+    // Synth voices for this offline context, one per instrument+timbre,
+    // matching the live engine's resolution order. They MUST all be created
+    // here, before the callback returns: Tone.Offline restores the live
+    // context as soon as this function resolves, so anything instantiated
+    // later (e.g. lazily inside the Sequence callback) would belong to the
+    // live context and fail to connect to the offline color chain.
     const synthVoices = new Map<string, SynthVoice>();
-    const synthVoice = (
-      instrument: SynthInstrument,
-      timbre?: string,
-    ): SynthVoice => {
-      const key = `${instrument}:${timbre ?? ""}`;
-      let v = synthVoices.get(key);
-      if (!v) {
-        const patch = timbrePatch(instrument, timbre) ?? style.synth[instrument];
-        v = createSynthVoice(instrument, patch);
-        v.output.connect(color.input);
-        synthVoices.set(key, v);
-      }
-      return v;
-    };
+    const voiceKey = (instrument: SynthInstrument, timbre?: string) =>
+      `${instrument}:${timbre ?? ""}`;
+    for (const track of opts.pattern.tracks) {
+      if (track.meta?.kind !== "synth") continue;
+      const key = voiceKey(track.meta.instrument, track.meta.timbre);
+      if (synthVoices.has(key)) continue;
+      const patch =
+        timbrePatch(track.meta.instrument, track.meta.timbre) ??
+        style.synth[track.meta.instrument];
+      const v = createSynthVoice(track.meta.instrument, patch);
+      v.output.connect(color.input);
+      synthVoices.set(key, v);
+    }
 
     // Style texture bed for the whole render.
     const texture = style.createTexture();
@@ -117,11 +120,11 @@ export async function renderLoopToMp3(opts: RenderOptions): Promise<Blob> {
             continue;
           }
           if (track.meta?.kind === "synth") {
-            synthVoice(track.meta.instrument, track.meta.timbre).triggerNote(
-              track.meta.note,
-              time,
-              track.volumeDb,
+            const voice = synthVoices.get(
+              voiceKey(track.meta.instrument, track.meta.timbre),
             );
+            if (!voice) continue;
+            voice.triggerNote(track.meta.note, time, track.volumeDb);
             continue;
           }
           const player = players.player(track.sampleId);
