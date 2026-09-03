@@ -10,4 +10,7 @@ export function getClaude(): AnthropicBedrock {
   return cached;
 }
 
-export const CLAUDE_MODEL = "us.anthropic.claude-sonnet-4-6";
+// Bedrock cross-region inference profile. Overridable so a deploy can be
+// pinned/rolled back without a rebuild.
+export const CLAUDE_MODEL =
+  process.env.CLAUDE_MODEL ?? "us.anthropic.claude-opus-4-8";

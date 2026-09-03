@@ -27,10 +27,10 @@ Drum machine em loop que roda no browser, com Claude (via AWS Bedrock) co-produz
 | Synth | Tone.js (MonoSynth/Synth + PolySynth), geração travada em escala |
 | Master FX | Bus único (Filter → Tremolo → Freeverb) + taps FFT/Meter pro visualizador |
 | Gestos | MediaPipe Tasks Vision (GestureRecognizer, WASM/GPU) — assets locais em `public/` |
-| IA conversacional | Claude Sonnet 4.6 via Amazon Bedrock (`us.anthropic.claude-sonnet-4-6`) |
-| Tool use | 3 tools (`update_pattern`, `generate_surprise`, `generate_synth`) + prompt caching |
+| IA conversacional | Claude Opus 4.8 via Amazon Bedrock (`us.anthropic.claude-opus-4-8`, override com `CLAUDE_MODEL`) |
+| Tool use | 4 tools (`update_pattern`, `generate_surprise`, `generate_synth`, `compose_song`) + prompt caching |
 | TTS das surpresas | Amazon Polly (vozes generativas e neurais em PT-BR e EN-US) |
-| Share | S3 privado + URL pré-assinada (10 min) + QR (`qrcode`) |
+| Share | S3 privado + link curto `/dl/<id>` (re-assina 10 min a cada acesso) + QR (`qrcode`) |
 | Export MP3 | Tone.Offline + `@breezystack/lamejs` (client-side) |
 
 Toda a inteligência roda na AWS — não há `ANTHROPIC_API_KEY`. O SDK `@anthropic-ai/bedrock-sdk` autentica via credenciais AWS padrão. **Regra da conta: nada é público** — o bucket de shares é fechado e o acesso é só por URL pré-assinada.

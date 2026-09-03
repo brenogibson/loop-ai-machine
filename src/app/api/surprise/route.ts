@@ -155,7 +155,8 @@ Regra dura: a frase deve ser ORIGINAL, não pode ser uma das frases listadas aci
     const response = await client.messages.create({
       model: CLAUDE_MODEL,
       max_tokens: 512,
-      temperature: 0.8,
+      // No temperature: deprecated on Opus 4.8+. Phrase variety comes from the
+      // rotating category/style/step hints below.
       system: systemBlocks,
       tools: [SURPRISE_TOOL],
       tool_choice: { type: "tool", name: "generate_surprise" },

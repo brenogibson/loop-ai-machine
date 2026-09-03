@@ -139,7 +139,9 @@ export async function POST(req: Request) {
   try {
     const response = await client.messages.create({
       model: CLAUDE_MODEL,
-      max_tokens: 1024,
+      // compose_song is the biggest output (drums + bass + lead in one call);
+      // hitting the cap truncates the tool JSON and the whole turn is lost.
+      max_tokens: 3072,
       system: systemBlocks,
       // Three tools: update_pattern (beat), generate_surprise (spoken phrase),
       // generate_synth (bass/lead line). tool_choice:any forces Claude to call
@@ -153,6 +155,12 @@ export async function POST(req: Request) {
       (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
     );
     if (!toolUse) {
+      if (response.stop_reason === "max_tokens") {
+        return NextResponse.json(
+          { error: "resposta muito longa — pede algo mais simples" },
+          { status: 502 },
+        );
+      }
       return NextResponse.json(
         { error: "no tool_use in response" },
         { status: 502 },
