@@ -21,16 +21,17 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-// "Take it home": renders the loop to MP3 in the browser, uploads it, and shows
-// a QR pointing at a presigned S3 URL (10 min) — so the download outlives the
-// event site itself. Nothing on the AWS account is public; the QR carries the
-// signed URL. The /s/<id> replay link is secondary (works while the app is up).
+// "Take it home": renders the loop to MP3 in the browser, uploads it to the
+// private bucket, and shows a QR with the SHORT /dl/<id> link — the app
+// re-signs a fresh presigned URL on every hit and redirects (a raw presigned
+// URL is too long for a cleanly scannable QR). Nothing on the AWS account is
+// public. The /s/<id> replay link is the fallback when the upload fails.
 export function ShareButton() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [share, setShare] = useState<{
     pageUrl: string;
-    mp3Url: string | null;
+    dlUrl: string | null;
     qr: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -66,15 +67,17 @@ export function ShareButton() {
       });
 
       const pageUrl = `${window.location.origin}/s/${res.id}`;
-      // QR points at the MP3 itself so the download works even after the event
-      // site is gone; fall back to the replay page if the upload failed.
-      const mp3Url = res.mp3?.url ?? null;
-      const qr = await QRCode.toDataURL(mp3Url ?? pageUrl, {
+      // QR encodes the SHORT /dl link (a full presigned S3 URL is too long for
+      // a cleanly scannable QR). The route re-signs a fresh URL on every hit
+      // and redirects to the private bucket. Falls back to the replay page if
+      // the MP3 upload failed.
+      const dlUrl = res.mp3 ? `${window.location.origin}/dl/${res.id}` : null;
+      const qr = await QRCode.toDataURL(dlUrl ?? pageUrl, {
         width: 240,
         margin: 1,
         color: { dark: "#120806", light: "#fff1e0" },
       });
-      setShare({ pageUrl, mp3Url, qr });
+      setShare({ pageUrl, dlUrl, qr });
       setCopied(false);
     } catch (err) {
       console.error("share failed", err);
@@ -91,7 +94,7 @@ export function ShareButton() {
   const copy = useCallback(async () => {
     if (!share) return;
     try {
-      await navigator.clipboard.writeText(share.mp3Url ?? share.pageUrl);
+      await navigator.clipboard.writeText(share.dlUrl ?? share.pageUrl);
       setCopied(true);
     } catch {
       // clipboard may be unavailable; the URL is visible to copy manually
@@ -128,7 +131,7 @@ export function ShareButton() {
           >
             <h2 className="text-xl font-semibold">Leva seu som! 🎧</h2>
             <p className="text-sm text-zinc-400 text-center">
-              {share.mp3Url
+              {share.dlUrl
                 ? "Aponta a câmera do celular pro QR e baixa o MP3 do seu loop."
                 : "Aponta a câmera do celular pro QR pra ouvir seu loop."}
             </p>
@@ -138,15 +141,10 @@ export function ShareButton() {
               alt="QR code pra baixar o loop"
               className="rounded-xl w-56 h-56"
             />
-            {share.mp3Url && (
-              <p className="text-[11px] text-amber-300/80 text-center">
-                ⏱ O download vale por 10 minutos — baixa agora!
-              </p>
-            )}
             <div className="w-full flex items-center gap-2">
               <input
                 readOnly
-                value={share.mp3Url ?? share.pageUrl}
+                value={share.dlUrl ?? share.pageUrl}
                 onFocus={(e) => e.target.select()}
                 className="flex-1 px-3 py-2 rounded-full bg-white/5 border border-white/10 text-zinc-300 text-xs focus:outline-none"
               />

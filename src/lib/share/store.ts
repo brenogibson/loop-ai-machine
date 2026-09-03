@@ -1,5 +1,6 @@
 import {
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
@@ -70,6 +71,24 @@ export async function putShareMp3(
     { expiresIn: MP3_URL_EXPIRY_S },
   );
   return { url, expiresInS: MP3_URL_EXPIRY_S };
+}
+
+// Fresh presigned URL for a stored MP3 — used by the /dl/<id> short-link
+// redirect (the full presigned URL is far too long for a scannable QR, so the
+// QR carries the short path and this signs on every hit).
+export async function presignMp3Url(id: string): Promise<string | null> {
+  if (!SHARE_ID_RE.test(id)) return null;
+  const key = `mp3/${id}.mp3`;
+  try {
+    await s3().send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+  } catch {
+    return null; // no such object (or no access) → treat as not found
+  }
+  return getSignedUrl(
+    s3(),
+    new GetObjectCommand({ Bucket: BUCKET, Key: key }),
+    { expiresIn: MP3_URL_EXPIRY_S },
+  );
 }
 
 export async function getShare(id: string): Promise<SharePayload | null> {
